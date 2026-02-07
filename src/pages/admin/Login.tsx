@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import MainLayout from '@/components/layout/MainLayout';
-import { mockAdminCredentials, addAuditLog } from '@/lib/mockData';
+import api from '@/lib/api';
 import logo from '@/assets/logo.png';
 
 const AdminLogin = () => {
@@ -24,26 +24,19 @@ const AdminLogin = () => {
     setError('');
     setIsLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const response = await api.post('/auth/login', { username, password });
 
-    if (username === mockAdminCredentials.username && password === mockAdminCredentials.password) {
       localStorage.setItem('isAdminLoggedIn', 'true');
-
-      // Log the login action
-      addAuditLog({
-        transactionId: `LOG-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-        deedNumber: '-',
-        action: 'login',
-        performedBy: username,
-        timestamp: new Date().toISOString(),
-        details: 'Admin login successful',
-      });
+      localStorage.setItem('token', response.data.token);
 
       navigate('/admin/dashboard');
-    } else {
-      setError(t.login.error);
+    } catch (err: any) {
+      console.error('Login Error:', err.response?.data?.message || err.message);
+      setError(err.response?.data?.message || err.message || t.login.error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
@@ -144,7 +137,7 @@ const AdminLogin = () => {
 
               <div className="mt-8 pt-6 border-t border-border/40 text-center space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  Demo Credentials: <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-primary">admin</code> / <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-primary">admin123</code>
+                  <span className="opacity-70">Authorized Personnel Only</span>
                 </p>
                 <div className="text-xs text-muted-foreground/60 flex items-center justify-center gap-1">
                   <Lock className="w-3 h-3" />

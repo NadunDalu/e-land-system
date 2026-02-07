@@ -27,12 +27,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import MainLayout from '@/components/layout/MainLayout';
-import { mockDeeds, DeedRecord } from '@/lib/mockData';
+import { DeedRecord } from '@/types';
+import api from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 const SearchDeeds = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { toast } = useToast();
 
   const [searchFilters, setSearchFilters] = useState({
     landTitleNumber: '',
@@ -42,9 +46,14 @@ const SearchDeeds = () => {
     status: '',
   });
 
-  const [filteredDeeds, setFilteredDeeds] = useState<DeedRecord[]>(mockDeeds);
+  const [filteredDeeds, setFilteredDeeds] = useState<DeedRecord[]>([]);
   const [selectedDeed, setSelectedDeed] = useState<DeedRecord | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchDeeds();
+  }, [searchFilters]);
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
@@ -68,40 +77,33 @@ const SearchDeeds = () => {
 
   const districts = ['All', 'Colombo', 'Kandy', 'Galle', 'Jaffna', 'Kurunegala'];
 
+  const fetchDeeds = async () => {
+    setIsLoading(true);
+    try {
+      // Build query params
+      const params = new URLSearchParams();
+      if (searchFilters.landTitleNumber) params.append('landTitleNumber', searchFilters.landTitleNumber);
+      if (searchFilters.deedNumber) params.append('deedNumber', searchFilters.deedNumber);
+      if (searchFilters.ownerName) params.append('ownerName', searchFilters.ownerName);
+      if (searchFilters.district && searchFilters.district !== 'All') params.append('district', searchFilters.district);
+      if (searchFilters.status && searchFilters.status !== 'All') params.append('status', searchFilters.status);
+
+      const response = await api.get(`/deeds?${params.toString()}`);
+      setFilteredDeeds(response.data);
+    } catch (error) {
+      console.error('Error fetching deeds:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch deeds. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleFilterChange = (field: string, value: string) => {
-    const newFilters = { ...searchFilters, [field]: value };
-    setSearchFilters(newFilters);
-
-    // Filter deeds based on all filters
-    let filtered = mockDeeds;
-
-    if (newFilters.landTitleNumber) {
-      filtered = filtered.filter(deed =>
-        deed.landTitleNumber.toLowerCase().includes(newFilters.landTitleNumber.toLowerCase())
-      );
-    }
-
-    if (newFilters.deedNumber) {
-      filtered = filtered.filter(deed =>
-        deed.deedNumber.toLowerCase().includes(newFilters.deedNumber.toLowerCase())
-      );
-    }
-
-    if (newFilters.ownerName) {
-      filtered = filtered.filter(deed =>
-        deed.ownerName.toLowerCase().includes(newFilters.ownerName.toLowerCase())
-      );
-    }
-
-    if (newFilters.district && newFilters.district !== 'All') {
-      filtered = filtered.filter(deed => deed.district === newFilters.district);
-    }
-
-    if (newFilters.status && newFilters.status !== 'All') {
-      filtered = filtered.filter(deed => deed.status === newFilters.status);
-    }
-
-    setFilteredDeeds(filtered);
+    setSearchFilters(prev => ({ ...prev, [field]: value }));
   };
 
   const handleViewDeed = (deed: DeedRecord) => {
@@ -117,7 +119,6 @@ const SearchDeeds = () => {
       district: '',
       status: '',
     });
-    setFilteredDeeds(mockDeeds);
   };
 
   const getStatusBadge = (status: string) => {

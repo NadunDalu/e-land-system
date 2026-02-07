@@ -12,8 +12,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import MainLayout from '@/components/layout/MainLayout';
-import { findDeedByNumber, DeedRecord } from '@/lib/mockData';
+import { DeedRecord } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
+import api from '@/lib/api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,16 +71,30 @@ const TransferOwnership = () => {
     setSearchError('');
     setFoundDeed(null);
 
-    // Simulate search delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    try {
+      // Search by landTitleNumber or deedNumber? The UI placeholder says 'land title number'
+      // But let's support searching by any relevant field if the backend supports it.
+      // For now, let's assume the input is searched against multiple fields in the backend if we use 'search' param,
+      // OR we search specifically by 'landTitleNumber'.
+      // The backend 'search' query param matches deedNumber, landTitleNumber, ownerNIC.
+      const response = await api.get(`/deeds?search=${searchDeedNumber}`);
 
-    const deed = findDeedByNumber(searchDeedNumber);
-    if (deed) {
-      setFoundDeed(deed);
-    } else {
-      setSearchError(t.verify.result.notFound);
+      if (response.data && response.data.length > 0) {
+        // Find exact match if possible, or just take the first result
+        // For strictness, let's look for exact match on landTitleNumber if possible
+        const exactMatch = response.data.find((d: DeedRecord) =>
+          d.landTitleNumber.toLowerCase() === searchDeedNumber.toLowerCase()
+        );
+        setFoundDeed(exactMatch || response.data[0]);
+      } else {
+        setSearchError(t.verify.result.notFound);
+      }
+    } catch (error) {
+      console.error('Error searching deed:', error);
+      setSearchError('Error searching for deed. Please try again.');
+    } finally {
+      setIsSearching(false);
     }
-    setIsSearching(false);
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -90,24 +105,39 @@ const TransferOwnership = () => {
     setShowConfirmDialog(false);
     setIsTransferring(true);
 
-    // Simulate transfer
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    if (!foundDeed) return;
 
-    setIsTransferring(false);
+    try {
+      await api.put('/deeds/transfer', {
+        deedId: foundDeed._id || foundDeed.id, // Ensure we use the correct ID field from Mongo
+        newOwnerName: newOwnerData.ownerName,
+        newOwnerNIC: newOwnerData.ownerNIC,
+        transferReason: newOwnerData.transferReason
+      });
 
-    toast({
-      title: t.common.success,
-      description: 'Ownership transfer successfully recorded in the system',
-    });
+      toast({
+        title: t.common.success,
+        description: 'Ownership transfer successfully recorded in the system',
+      });
 
-    // Reset form
-    setFoundDeed(null);
-    setSearchDeedNumber('');
-    setNewOwnerData({
-      ownerName: '',
-      ownerNIC: '',
-      transferReason: '',
-    });
+      // Reset form
+      setFoundDeed(null);
+      setSearchDeedNumber('');
+      setNewOwnerData({
+        ownerName: '',
+        ownerNIC: '',
+        transferReason: '',
+      });
+    } catch (error: any) {
+      console.error('Error transferring ownership:', error);
+      toast({
+        variant: "destructive",
+        title: "Transfer Failed",
+        description: error.response?.data?.message || "Could not transfer ownership. Please try again.",
+      });
+    } finally {
+      setIsTransferring(false);
+    }
   };
 
   const isTransferFormValid =

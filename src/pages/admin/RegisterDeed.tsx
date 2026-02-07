@@ -12,8 +12,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MainLayout from '@/components/layout/MainLayout';
-import { generateMockHash } from '@/lib/mockData';
+import { generateHash } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
+import api from '@/lib/api';
 
 const RegisterDeed = () => {
   const { t } = useLanguage();
@@ -94,36 +95,50 @@ const RegisterDeed = () => {
     // Simulate hash generation delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     const dataString = JSON.stringify(formData);
-    const hash = generateMockHash(dataString);
+    const hash = generateHash(dataString);
     setGeneratedHash(hash);
     setIsGenerating(false);
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    // Simulate submission delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsSubmitting(false);
 
-    toast({
-      title: t.common.success,
-      description: t.register.success,
-    });
+    try {
+      const payload = {
+        ...formData,
+        blockchainHash: generatedHash
+      };
 
-    // Reset form
-    setFormData({
-      landTitleNumber: '',
-      deedNumber: '',
-      landLocation: '',
-      district: '',
-      province: '',
-      surveyRef: '',
-      ownerName: '',
-      ownerNIC: '',
-      landArea: '',
-    });
-    setGeneratedHash(null);
-    setUploadedFile(null);
+      await api.post('/deeds', payload);
+
+      toast({
+        title: t.common.success,
+        description: t.register.success,
+      });
+
+      // Reset form
+      setFormData({
+        landTitleNumber: '',
+        deedNumber: '',
+        landLocation: '',
+        district: '',
+        province: '',
+        surveyRef: '',
+        ownerName: '',
+        ownerNIC: '',
+        landArea: '',
+      });
+      setGeneratedHash(null);
+      setUploadedFile(null);
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: err.response?.data?.message || "Could not register deed. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isFormValid = Object.values(formData).every(value => value.trim() !== '');

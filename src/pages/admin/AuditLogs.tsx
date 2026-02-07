@@ -20,12 +20,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import MainLayout from '@/components/layout/MainLayout';
-import { mockAuditLogs, AuditLogEntry } from '@/lib/mockData';
+import { AuditLogEntry } from '@/types';
+import api from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 const AuditLogs = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { toast } = useToast();
 
   const [searchFilters, setSearchFilters] = useState({
     deedNumber: '',
@@ -33,8 +37,37 @@ const AuditLogs = () => {
     performedBy: '',
   });
 
-  const [filteredLogs, setFilteredLogs] = useState<AuditLogEntry[]>(mockAuditLogs);
+  const [allLogs, setAllLogs] = useState<AuditLogEntry[]>([]);
+  const [filteredLogs, setFilteredLogs] = useState<AuditLogEntry[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  useEffect(() => {
+    // Client-side filtering
+    let filtered = [...allLogs];
+
+    if (searchFilters.deedNumber) {
+      filtered = filtered.filter(log =>
+        log.deedNumber.toLowerCase().includes(searchFilters.deedNumber.toLowerCase())
+      );
+    }
+
+    if (searchFilters.action && searchFilters.action !== 'All') {
+      filtered = filtered.filter(log => log.action === searchFilters.action);
+    }
+
+    if (searchFilters.performedBy) {
+      filtered = filtered.filter(log =>
+        log.performedBy.toLowerCase().includes(searchFilters.performedBy.toLowerCase())
+      );
+    }
+
+    setFilteredLogs(filtered);
+  }, [searchFilters, allLogs]);
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
@@ -56,37 +89,30 @@ const AuditLogs = () => {
     { icon: FileText, label: t.dashboard.menu.auditLogs, path: '/admin/audit' },
   ];
 
+  const fetchLogs = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/audit');
+      setAllLogs(response.data);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch audit logs.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleFilterChange = (field: string, value: string) => {
-    const newFilters = { ...searchFilters, [field]: value };
-    setSearchFilters(newFilters);
-
-    let filtered = [...mockAuditLogs];
-
-    if (newFilters.deedNumber) {
-      filtered = filtered.filter(log =>
-        log.deedNumber.toLowerCase().includes(newFilters.deedNumber.toLowerCase())
-      );
-    }
-
-    if (newFilters.action && newFilters.action !== 'All') {
-      filtered = filtered.filter(log => log.action === newFilters.action);
-    }
-
-    if (newFilters.performedBy) {
-      filtered = filtered.filter(log =>
-        log.performedBy.toLowerCase().includes(newFilters.performedBy.toLowerCase())
-      );
-    }
-
-    // Sort by timestamp descending
-    filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    setFilteredLogs(filtered);
+    setSearchFilters(prev => ({ ...prev, [field]: value }));
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await fetchLogs();
     setIsRefreshing(false);
   };
 
@@ -96,7 +122,6 @@ const AuditLogs = () => {
       action: '',
       performedBy: '',
     });
-    setFilteredLogs(mockAuditLogs);
   };
 
   const getActionBadge = (action: string) => {
@@ -310,7 +335,7 @@ const AuditLogs = () => {
                         {filteredLogs.map((log) => {
                           const { date, time } = formatTimestamp(log.timestamp);
                           return (
-                            <TableRow key={log.id} className="hover:bg-muted/30 transition-colors">
+                            <TableRow key={log._id || log.id} className="hover:bg-muted/30 transition-colors">
                               <TableCell className="font-mono text-xs text-primary">{log.transactionId}</TableCell>
                               <TableCell className="font-medium">{log.deedNumber}</TableCell>
                               <TableCell>{getActionBadge(log.action)}</TableCell>

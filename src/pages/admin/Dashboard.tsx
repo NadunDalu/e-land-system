@@ -16,33 +16,89 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import MainLayout from '@/components/layout/MainLayout';
-import { mockDashboardStats, getRecentActivity } from '@/lib/mockData';
+
+import { AuditLogEntry, DeedRecord } from '@/types';
+import api from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 const AdminDashboard = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
-    if (!isLoggedIn) {
-      navigate('/admin/login');
-    } else {
-      // Simulate loading data
-      setTimeout(() => setLoading(false), 800);
-    }
-  }, [navigate]);
+  const { toast } = useToast();
 
   const handleLogout = () => {
     localStorage.removeItem('isAdminLoggedIn');
     navigate('/');
   };
 
-  const stats = [
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalDeeds: 0,
+    pendingTransfers: 0,
+    todayVerifications: 0,
+    activeUsers: 1, // Default to 1 (current admin)
+  });
+  const [recentActivity, setRecentActivity] = useState<AuditLogEntry[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
+      if (!isLoggedIn) {
+        navigate('/admin/login');
+        return;
+      }
+
+      try {
+        const [deedsRes, auditRes] = await Promise.all([
+          api.get('/deeds'),
+          api.get('/audit')
+        ]);
+
+        const deeds = deedsRes.data;
+        const auditLogs = auditRes.data;
+
+        // Calculate Stats
+        const totalDeeds = deeds.length;
+        const pendingTransfers = deeds.filter((d: DeedRecord) => d.status === 'pending').length; // Assuming 'pending' status exists or we infer it
+
+        // Today's verifications
+        const today = new Date().toDateString();
+        const todayVerifications = auditLogs.filter((log: AuditLogEntry) =>
+          log.action === 'verify' && new Date(log.timestamp).toDateString() === today
+        ).length;
+
+        // Active Users (Distinct users in logs)
+        const uniqueUsers = new Set(auditLogs.map((log: AuditLogEntry) => log.performedBy));
+
+        setStats({
+          totalDeeds,
+          pendingTransfers, // Or maybe check logs for transfer requests? For now, deeds status.
+          todayVerifications,
+          activeUsers: uniqueUsers.size || 1
+        });
+
+        setRecentActivity(auditLogs.slice(0, 5));
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load dashboard data.",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [navigate, toast]);
+
+  const statsCards = [
     {
       label: t.dashboard.stats.totalDeeds,
-      value: mockDashboardStats.totalDeeds,
+      value: stats.totalDeeds,
       icon: FileCheck,
       color: 'from-blue-500 to-blue-600',
       bg: 'bg-blue-500/10',
@@ -50,7 +106,7 @@ const AdminDashboard = () => {
     },
     {
       label: t.dashboard.stats.pendingTransfers,
-      value: mockDashboardStats.pendingTransfers,
+      value: stats.pendingTransfers,
       icon: ArrowUpDown,
       color: 'from-amber-500 to-amber-600',
       bg: 'bg-amber-500/10',
@@ -58,7 +114,7 @@ const AdminDashboard = () => {
     },
     {
       label: t.dashboard.stats.todayVerifications,
-      value: mockDashboardStats.todayVerifications,
+      value: stats.todayVerifications,
       icon: Search,
       color: 'from-emerald-500 to-emerald-600',
       bg: 'bg-emerald-500/10',
@@ -66,7 +122,7 @@ const AdminDashboard = () => {
     },
     {
       label: t.dashboard.stats.activeUsers,
-      value: mockDashboardStats.activeUsers,
+      value: stats.activeUsers,
       icon: Users,
       color: 'from-purple-500 to-purple-600',
       bg: 'bg-purple-500/10',
@@ -82,7 +138,7 @@ const AdminDashboard = () => {
     { icon: FileText, label: t.dashboard.menu.auditLogs, path: '/admin/audit' },
   ];
 
-  const recentActivity = getRecentActivity(5);
+
 
   if (loading) {
     return (
@@ -199,7 +255,7 @@ const AdminDashboard = () => {
 
             {/* Stats Grid */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {stats.map((stat, index) => (
+              {statsCards.map((stat, index) => (
                 <div
                   key={index}
                   className="glass-card rounded-2xl p-6 hover:-translate-y-1 transition-transform duration-300 relative overflow-hidden group"
@@ -240,7 +296,7 @@ const AdminDashboard = () => {
                   <CardContent className="p-0">
                     <div className="divide-y divide-border/40">
                       {recentActivity.map((activity) => (
-                        <div key={activity.id} className="p-4 sm:p-6 hover:bg-muted/30 transition-colors flex items-center justify-between group">
+                        <div key={activity._id || activity.id} className="p-4 sm:p-6 hover:bg-muted/30 transition-colors flex items-center justify-between group">
                           <div className="flex items-start gap-4">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${activity.action === 'register' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
                               activity.action === 'transfer' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
