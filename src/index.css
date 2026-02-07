@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap');
+
 /* Sri Lanka E-Land Registry System - Modern & Premium Design System
    Trustworthy, digital-first aesthetic with deep blues and crisp whites
    All colors in HSL format
@@ -138,6 +140,18 @@
     @apply bg-background text-foreground antialiased;
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+  }
+
+  html[lang="si"] {
+    font-family: 'Noto Sans Sinhala', 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 110%;
+    line-height: 1.6;
+  }
+
+  html[lang="ta"] {
+    font-family: 'Noto Sans Tamil', 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 110%;
+    line-height: 1.6;
   }
 
   h1,

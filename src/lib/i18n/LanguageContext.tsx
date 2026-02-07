@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { translations, Language } from './translations';
 
 type TranslationType = typeof translations.en;
@@ -24,10 +24,13 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     return 'en';
   });
 
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('lang', lang);
-    document.documentElement.lang = lang === 'si' ? 'si' : lang === 'ta' ? 'ta' : 'en';
   }, []);
 
   const value: LanguageContextType = {
