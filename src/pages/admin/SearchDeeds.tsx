@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FilePlus, ArrowRightLeft, Search, FileText, LogOut,
-  Eye, MapPin, Calendar, Filter, X, Edit, Save, Loader2
+  Eye, MapPin, Calendar, Filter, X, Edit, Save, Loader2, Trash2, CheckCircle2
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -25,8 +25,21 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import MainLayout from '@/components/layout/MainLayout';
+import Sidebar from '@/components/layout/Sidebar';
 import { DeedRecord } from '@/types';
 import api from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
@@ -54,36 +67,30 @@ const SearchDeeds = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<DeedRecord>>({});
 
+  // Delete State
+  const [deedToDelete, setDeedToDelete] = useState<DeedRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteSuccessDialog, setShowDeleteSuccessDialog] = useState(false);
+  const [deletedDeedNumber, setDeletedDeedNumber] = useState('');
+
+  const [userRole, setUserRole] = useState<string | null>(null);
+
   useEffect(() => {
     fetchDeeds();
   }, [searchFilters]);
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
+    const role = localStorage.getItem('userRole');
+    setUserRole(role);
+
     if (!isLoggedIn) {
       navigate('/admin/login');
     }
   }, [navigate]);
 
-  const handleLogout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('isAdminLoggedIn');
-      navigate('/');
-    }
-  };
-
-  const menuItems = [
-    { icon: LayoutDashboard, label: t.dashboard.menu.overview, path: '/admin/dashboard' },
-    { icon: FilePlus, label: t.dashboard.menu.registerDeed, path: '/admin/register' },
-    { icon: ArrowRightLeft, label: t.dashboard.menu.transferDeed, path: '/admin/transfer' },
-    { icon: Search, label: t.dashboard.menu.searchDeeds, path: '/admin/search' },
-    { icon: FileText, label: t.dashboard.menu.auditLogs, path: '/admin/audit' },
-  ];
+  // Logout logic handled in Sidebar
+  // Menu items handled in Sidebar
 
   const districts = ['All', 'Colombo', 'Kandy', 'Galle', 'Jaffna', 'Kurunegala'];
 
@@ -188,64 +195,12 @@ const SearchDeeds = () => {
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Sidebar */}
-          <aside className="lg:w-72 flex-shrink-0 space-y-8">
-            <div className="glass-card rounded-2xl p-6 border-l-4 border-l-primary hidden lg:block">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="font-bold text-xl text-primary">AD</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">Admin Portal</h3>
-                  <p className="text-xs text-muted-foreground">Government Officer</p>
-                </div>
-              </div>
-              <div className="space-y-1">
-                {menuItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${location.pathname === item.path
-                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                  >
-                    <item.icon className="w-5 h-5 relative z-10" />
-                    <span className="font-medium relative z-10">{item.label}</span>
-                    {location.pathname === item.path && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 opacity-100 z-0"></div>
-                    )}
-                  </Link>
-                ))}
-              </div>
+          <Sidebar />
 
-              <div className="mt-8 pt-6 border-t border-border/40">
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 w-full transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="font-medium">{t.nav.logout}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile Nav */}
-            <div className="lg:hidden glass-card rounded-xl p-4 flex overflow-x-auto gap-4 scrollbar-hide">
-              {menuItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex flex-col items-center justify-center min-w-[5rem] p-3 rounded-xl gap-2 transition-colors ${location.pathname === item.path
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 text-muted-foreground'
-                    }`}
-                >
-                  <item.icon className="w-6 h-6" />
-                  <span className="text-[10px] font-medium text-center truncate w-full">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          </aside>
+          {/* Mobile Nav */}
+          <div className="lg:hidden">
+            <Sidebar mobile className="mb-6" />
+          </div>
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
@@ -393,6 +348,19 @@ const SearchDeeds = () => {
                                 <Edit className="w-3.5 h-3.5" />
                                 <span className="sr-only sm:not-sr-only">Edit</span>
                               </Button>
+
+
+                              {userRole === 'superadmin' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setDeedToDelete(deed)}
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 ml-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span className="sr-only">Delete</span>
+                                </Button>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -584,7 +552,64 @@ const SearchDeeds = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+
+      {/* Delete Confirmation Alert */}
+      <AlertDialog open={!!deedToDelete} onOpenChange={(open) => !open && setDeedToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Deed Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete deed <strong>{deedToDelete?.deedNumber}</strong>?
+              This action cannot be undone and will be permanently logged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteDeed();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Record'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Success Dialog */}
+      <Dialog open={showDeleteSuccessDialog} onOpenChange={setShowDeleteSuccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
+              <Trash2 className="h-6 w-6 text-red-600" />
+            </div>
+            <DialogTitle className="text-center text-xl">Deed Deleted</DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              Deed record <strong>{deletedDeedNumber}</strong> has been permanently removed from the registry.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center pt-4">
+            <Button
+              type="button"
+              className="w-full sm:w-auto min-w-[120px]"
+              onClick={() => setShowDeleteSuccessDialog(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </MainLayout >
   );
 };
 

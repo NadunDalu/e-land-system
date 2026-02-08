@@ -29,8 +29,13 @@ const AdminLogin = () => {
 
       localStorage.setItem('isAdminLoggedIn', 'true');
       localStorage.setItem('token', response.data.token);
+      localStorage.setItem('userRole', response.data.user.role);
 
-      navigate('/admin/dashboard');
+      if (response.data.user.mustChangePassword) {
+        navigate('/admin/change-password');
+      } else {
+        navigate('/admin/dashboard');
+      }
     } catch (err: any) {
       console.error('Login Error:', err.response?.data?.message || err.message);
       setError(err.response?.data?.message || err.message || t.login.error);

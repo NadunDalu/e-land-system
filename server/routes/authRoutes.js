@@ -64,6 +64,7 @@ router.post('/login', async (req, res) => {
         const payload = {
             user: {
                 id: user.id,
+                username: user.username, // Added username to payload
                 role: user.role
             }
         };
@@ -83,9 +84,153 @@ router.post('/login', async (req, res) => {
             { expiresIn: '1d' },
             (err, token) => {
                 if (err) throw err;
-                res.json({ token, user: { username: user.username, role: user.role } });
+                res.json({
+                    token,
+                    user: {
+                        username: user.username,
+                        role: user.role,
+                        mustChangePassword: user.mustChangePassword
+                    }
+                });
             }
         );
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Create New Admin User (Super Admin Only)
+router.post('/create-user', require('../middleware/authMiddleware'), require('../middleware/roleMiddleware'), async (req, res) => {
+    try {
+        const { username } = req.body; // Password is now auto-generated
+
+        // Check if user exists
+        let user = await User.findOne({ username });
+        if (user) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+
+        const defaultPassword = '00000';
+
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(defaultPassword, salt);
+
+        user = new User({
+            username,
+            passwordHash,
+            role: 'admin', // Only standard admins can be created
+            mustChangePassword: true // Force password change on first login
+        });
+
+        await user.save();
+
+        await user.save();
+
+        // Fetch performing user details (Super Admin)
+        // If username is in token (new logins), use it. If not (old sessions), fetch from DB.
+        let performedBy = req.user.user.username;
+        if (!performedBy) {
+            const superAdmin = await User.findById(req.user.user.id);
+            performedBy = superAdmin ? superAdmin.username : 'Unknown SuperAdmin';
+        }
+
+        // Audit Log
+        const log = new AuditLog({
+            transactionId: `USER-CREATE-${Date.now()}`,
+            action: 'create user',
+            performedBy: performedBy,
+            details: `Created new admin user: ${username} with default password`
+        });
+        await log.save();
+
+        res.status(201).json({ message: 'Admin user created successfully with default password (00000)' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Change Password Route
+router.post('/change-password', require('../middleware/authMiddleware'), async (req, res) => {
+    try {
+        const { newPassword } = req.body;
+        const userId = req.user.user.id;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(newPassword, salt);
+
+        user.passwordHash = passwordHash;
+        user.mustChangePassword = false;
+        await user.save();
+
+        // Audit Log
+        const log = new AuditLog({
+            transactionId: `PWD-CHANGE-${Date.now()}`,
+            action: 'update',
+            performedBy: user.username,
+            details: 'User changed password'
+        });
+        await log.save();
+
+        res.json({ message: 'Password changed successfully' });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Delete Admin User (Super Admin Only)
+router.delete('/users/:id', require('../middleware/authMiddleware'), require('../middleware/roleMiddleware'), async (req, res) => {
+    try {
+        const userToDelete = await User.findById(req.params.id);
+
+        if (!userToDelete) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (userToDelete.role === 'superadmin') {
+            return res.status(403).json({ message: 'Cannot delete Super Admin' });
+        }
+
+        await User.findByIdAndDelete(req.params.id);
+
+        // Fetch performing user details (Super Admin)
+        let performedBy = req.user.user.username;
+        if (!performedBy) {
+            const superAdmin = await User.findById(req.user.user.id);
+            performedBy = superAdmin ? superAdmin.username : 'Unknown SuperAdmin';
+        }
+
+        // Audit Log
+        const log = new AuditLog({
+            transactionId: `USER-DELETE-${Date.now()}`,
+            action: 'delete user',
+            performedBy: performedBy,
+            details: `Deleted admin user: ${userToDelete.username}`
+        });
+        await log.save();
+
+        res.json({ message: 'User deleted successfully' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Get All Admin Users (Super Admin Only)
+router.get('/users', require('../middleware/authMiddleware'), require('../middleware/roleMiddleware'), async (req, res) => {
+    try {
+        const users = await User.find({ role: { $ne: 'superadmin' } }).select('-passwordHash'); // Exclude superadmin from list if desired, or include all
+        res.json(users);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');

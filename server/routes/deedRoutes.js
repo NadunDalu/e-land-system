@@ -171,4 +171,41 @@ router.put('/:id', auth, async (req, res) => {
     }
 });
 
+// Delete Deed (Super Admin Only)
+router.delete('/:id', auth, require('../middleware/roleMiddleware'), async (req, res) => {
+    try {
+        const deedToDelete = await Deed.findById(req.params.id);
+
+        if (!deedToDelete) {
+            return res.status(404).json({ message: 'Deed not found' });
+        }
+
+        await Deed.findByIdAndDelete(req.params.id);
+
+        // Fetch performing user details (Super Admin)
+        let performedBy = req.user.user.username;
+        if (!performedBy) {
+            // Fallback if username missing in token (though it should be there now)
+            const User = require('../models/User'); // Lazy load to avoid circular dependency if any
+            const superAdmin = await User.findById(req.user.user.id);
+            performedBy = superAdmin ? superAdmin.username : 'Unknown SuperAdmin';
+        }
+
+        // Audit Log
+        const log = new AuditLog({
+            transactionId: `DEED-DELETE-${Date.now()}`,
+            deedNumber: deedToDelete.deedNumber,
+            action: 'delete deed',
+            performedBy: performedBy,
+            details: `Deleted deed record: ${deedToDelete.deedNumber} (Title: ${deedToDelete.landTitleNumber})`
+        });
+        await log.save();
+
+        res.json({ message: 'Deed deleted successfully' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;

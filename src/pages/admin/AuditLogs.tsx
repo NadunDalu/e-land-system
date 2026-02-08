@@ -20,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import MainLayout from '@/components/layout/MainLayout';
+import Sidebar from '@/components/layout/Sidebar';
 import { AuditLogEntry } from '@/types';
 import api from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
@@ -71,30 +72,22 @@ const AuditLogs = () => {
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
+    const userRole = localStorage.getItem('userRole');
+
     if (!isLoggedIn) {
       navigate('/admin/login');
+    } else if (userRole !== 'superadmin') {
+      toast({
+        variant: "destructive",
+        title: "Access Denied",
+        description: "You do not have permission to view audit logs."
+      });
+      navigate('/admin/dashboard');
     }
   }, [navigate]);
 
-  const handleLogout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('isAdminLoggedIn');
-      navigate('/');
-    }
-  };
-
-  const menuItems = [
-    { icon: LayoutDashboard, label: t.dashboard.menu.overview, path: '/admin/dashboard' },
-    { icon: FilePlus, label: t.dashboard.menu.registerDeed, path: '/admin/register' },
-    { icon: ArrowRightLeft, label: t.dashboard.menu.transferDeed, path: '/admin/transfer' },
-    { icon: Search, label: t.dashboard.menu.searchDeeds, path: '/admin/search' },
-    { icon: FileText, label: t.dashboard.menu.auditLogs, path: '/admin/audit' },
-  ];
+  // Logout logic handled in Sidebar
+  // Menu items handled in Sidebar
 
   const fetchLogs = async () => {
     setIsLoading(true);
@@ -145,6 +138,12 @@ const AuditLogs = () => {
         return <Badge className="bg-purple-500/15 text-purple-700 hover:bg-purple-500/25 border-purple-200 dark:text-purple-400 dark:border-purple-800">{t.audit.actions.login}</Badge>;
       case 'logout':
         return <Badge className="bg-gray-500/15 text-gray-700 hover:bg-gray-500/25 border-gray-200 dark:text-gray-400 dark:border-gray-800">Logout</Badge>;
+      case 'create user':
+        return <Badge className="bg-green-500/15 text-green-700 hover:bg-green-500/25 border-green-200 dark:text-green-400 dark:border-green-800">Create User</Badge>;
+      case 'delete user':
+        return <Badge variant="destructive" className="bg-red-500/15 text-red-700 hover:bg-red-500/25 border-red-200 dark:text-red-400 dark:border-red-900">Delete User</Badge>;
+      case 'delete deed':
+        return <Badge variant="destructive" className="bg-red-500/15 text-red-700 hover:bg-red-500/25 border-red-200 dark:text-red-400 dark:border-red-800">Delete Deed</Badge>;
       default:
         return <Badge variant="secondary">{action}</Badge>;
     }
@@ -164,64 +163,12 @@ const AuditLogs = () => {
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Sidebar */}
-          <aside className="lg:w-72 flex-shrink-0 space-y-8">
-            <div className="glass-card rounded-2xl p-6 border-l-4 border-l-primary hidden lg:block">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="font-bold text-xl text-primary">AD</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">Admin Portal</h3>
-                  <p className="text-xs text-muted-foreground">Government Officer</p>
-                </div>
-              </div>
-              <div className="space-y-1">
-                {menuItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${location.pathname === item.path
-                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                  >
-                    <item.icon className="w-5 h-5 relative z-10" />
-                    <span className="font-medium relative z-10">{item.label}</span>
-                    {location.pathname === item.path && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 opacity-100 z-0"></div>
-                    )}
-                  </Link>
-                ))}
-              </div>
+          <Sidebar />
 
-              <div className="mt-8 pt-6 border-t border-border/40">
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 w-full transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="font-medium">{t.nav.logout}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile Nav */}
-            <div className="lg:hidden glass-card rounded-xl p-4 flex overflow-x-auto gap-4 scrollbar-hide">
-              {menuItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex flex-col items-center justify-center min-w-[5rem] p-3 rounded-xl gap-2 transition-colors ${location.pathname === item.path
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 text-muted-foreground'
-                    }`}
-                >
-                  <item.icon className="w-6 h-6" />
-                  <span className="text-[10px] font-medium text-center truncate w-full">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          </aside>
+          {/* Mobile Nav */}
+          <div className="lg:hidden">
+            <Sidebar mobile className="mb-6" />
+          </div>
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
@@ -287,6 +234,9 @@ const AuditLogs = () => {
                         <SelectItem value="verify">{t.audit.actions.verify}</SelectItem>
                         <SelectItem value="login">{t.audit.actions.login}</SelectItem>
                         <SelectItem value="logout">Logout</SelectItem>
+                        <SelectItem value="create user">Create User</SelectItem>
+                        <SelectItem value="delete user">Delete User</SelectItem>
+                        <SelectItem value="delete deed">Delete Deed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

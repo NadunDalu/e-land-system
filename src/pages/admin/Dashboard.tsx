@@ -16,6 +16,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import MainLayout from '@/components/layout/MainLayout';
+import Sidebar from '@/components/layout/Sidebar';
 
 import { AuditLogEntry, DeedRecord } from '@/types';
 import api from '@/lib/api';
@@ -137,13 +138,7 @@ const AdminDashboard = () => {
     },
   ];
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: t.dashboard.menu.overview, path: '/admin/dashboard' },
-    { icon: FilePlus, label: t.dashboard.menu.registerDeed, path: '/admin/register' },
-    { icon: ArrowRightLeft, label: t.dashboard.menu.transferDeed, path: '/admin/transfer' },
-    { icon: Search, label: t.dashboard.menu.searchDeeds, path: '/admin/search' },
-    { icon: FileText, label: t.dashboard.menu.auditLogs, path: '/admin/audit' },
-  ];
+
 
 
 
@@ -163,81 +158,12 @@ const AdminDashboard = () => {
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Sidebar */}
-          <aside className="lg:w-72 flex-shrink-0 space-y-8">
-            <div className="glass-card rounded-2xl p-6 border-l-4 border-l-primary hidden lg:block">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="font-bold text-xl text-primary">AD</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">Admin Portal</h3>
-                  <p className="text-xs text-muted-foreground">Government Officer</p>
-                </div>
-              </div>
-              <div className="space-y-1">
-                {menuItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${location.pathname === item.path
-                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                  >
-                    <item.icon className="w-5 h-5 relative z-10" />
-                    <span className="font-medium relative z-10">{item.label}</span>
-                    {location.pathname === item.path && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 opacity-100 z-0"></div>
-                    )}
-                  </Link>
-                ))}
-              </div>
+          <Sidebar />
 
-              <div className="mt-8 pt-6 border-t border-border/40">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <button
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 w-full transition-colors"
-                    >
-                      <LogOut className="w-5 h-5" />
-                      <span className="font-medium">{t.nav.logout}</span>
-                    </button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{t.dashboard.logoutConfirm.title}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {t.dashboard.logoutConfirm.message}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>{t.dashboard.logoutConfirm.cancel}</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        {t.dashboard.logoutConfirm.confirm}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-
-            {/* Mobile Nav (visible only on small screens) */}
-            <div className="lg:hidden glass-card rounded-xl p-4 flex overflow-x-auto gap-4 scrollbar-hide">
-              {menuItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex flex-col items-center justify-center min-w-[5rem] p-3 rounded-xl gap-2 transition-colors ${location.pathname === item.path
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 text-muted-foreground'
-                    }`}
-                >
-                  <item.icon className="w-6 h-6" />
-                  <span className="text-[10px] font-medium text-center truncate w-full">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          </aside>
+          {/* Mobile Nav (visible only on small screens) */}
+          <div className="lg:hidden">
+            <Sidebar mobile className="mb-6" />
+          </div>
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
@@ -295,9 +221,11 @@ const AdminDashboard = () => {
                         </CardTitle>
                         <CardDescription>Latest transactions recorded on the immutable ledger</CardDescription>
                       </div>
-                      <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={() => navigate('/admin/audit')}>
-                        View All <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
+                      {localStorage.getItem('userRole') === 'superadmin' && (
+                        <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={() => navigate('/admin/audit')}>
+                          View All <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">

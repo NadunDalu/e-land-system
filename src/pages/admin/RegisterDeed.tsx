@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MainLayout from '@/components/layout/MainLayout';
+import Sidebar from '@/components/layout/Sidebar';
 import { generateHash } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import api from '@/lib/api';
@@ -46,25 +47,9 @@ const RegisterDeed = () => {
     }
   }, [navigate]);
 
-  const handleLogout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('isAdminLoggedIn');
-      navigate('/');
-    }
-  };
+  // Logout logic removed, handled in Sidebar
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: t.dashboard.menu.overview, path: '/admin/dashboard' },
-    { icon: FilePlus, label: t.dashboard.menu.registerDeed, path: '/admin/register' },
-    { icon: ArrowRightLeft, label: t.dashboard.menu.transferDeed, path: '/admin/transfer' },
-    { icon: Search, label: t.dashboard.menu.searchDeeds, path: '/admin/search' },
-    { icon: FileText, label: t.dashboard.menu.auditLogs, path: '/admin/audit' },
-  ];
+  // Menu items removed, handled in Sidebar
 
   const provinces = [
     'Western', 'Central', 'Southern', 'Northern', 'Eastern',
@@ -156,64 +141,12 @@ const RegisterDeed = () => {
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Sidebar */}
-          <aside className="lg:w-72 flex-shrink-0 space-y-8">
-            <div className="glass-card rounded-2xl p-6 border-l-4 border-l-primary hidden lg:block">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="font-bold text-xl text-primary">AD</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">Admin Portal</h3>
-                  <p className="text-xs text-muted-foreground">Government Officer</p>
-                </div>
-              </div>
-              <div className="space-y-1">
-                {menuItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${location.pathname === item.path
-                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                  >
-                    <item.icon className="w-5 h-5 relative z-10" />
-                    <span className="font-medium relative z-10">{item.label}</span>
-                    {location.pathname === item.path && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 opacity-100 z-0"></div>
-                    )}
-                  </Link>
-                ))}
-              </div>
+          <Sidebar />
 
-              <div className="mt-8 pt-6 border-t border-border/40">
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 w-full transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="font-medium">{t.nav.logout}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile Nav */}
-            <div className="lg:hidden glass-card rounded-xl p-4 flex overflow-x-auto gap-4 scrollbar-hide">
-              {menuItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex flex-col items-center justify-center min-w-[5rem] p-3 rounded-xl gap-2 transition-colors ${location.pathname === item.path
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 text-muted-foreground'
-                    }`}
-                >
-                  <item.icon className="w-6 h-6" />
-                  <span className="text-[10px] font-medium text-center truncate w-full">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          </aside>
+          {/* Mobile Nav */}
+          <div className="lg:hidden">
+            <Sidebar mobile className="mb-6" />
+          </div>
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">

@@ -13,6 +13,8 @@ import RegisterDeed from "./pages/admin/RegisterDeed";
 import TransferOwnership from "./pages/admin/TransferOwnership";
 import SearchDeeds from "./pages/admin/SearchDeeds";
 import AuditLogs from "./pages/admin/AuditLogs";
+import UserManagement from "./pages/admin/UserManagement";
+import ChangePassword from "./pages/admin/ChangePassword";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/layout/ScrollToTop";
 
@@ -36,6 +38,8 @@ const App = () => (
             <Route path="/admin/transfer" element={<TransferOwnership />} />
             <Route path="/admin/search" element={<SearchDeeds />} />
             <Route path="/admin/audit" element={<AuditLogs />} />
+            <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/change-password" element={<ChangePassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

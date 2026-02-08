@@ -13,12 +13,16 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['admin', 'officer'],
+        enum: ['superadmin', 'admin', 'officer'],
         default: 'admin',
     },
     createdAt: {
         type: Date,
         default: Date.now,
+    },
+    mustChangePassword: {
+        type: Boolean,
+        default: false,
     },
 });
 
