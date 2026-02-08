@@ -20,7 +20,8 @@ const Header = () => {
     { path: '/', label: t.nav.home },
     { path: '/verify', label: t.nav.verifyDeed },
     { path: '/about', label: t.nav.about },
-    { path: '/admin/login', label: t.nav.adminLogin },
+    { path: '/admin/login', label: 'Admin Login' },
+    { path: '/external-login', label: 'External Login' },
   ];
 
   return (

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const Deed = require('../models/Deed');
 const AuditLog = require('../models/AuditLog');
 const auth = require('../middleware/authMiddleware');
+const { requireInternalUser, allowReadOnlyAccess } = require('../middleware/externalMiddleware');
 
 // Helper function to generate SHA-256 hash
 const calculateDeedHash = (deedData) => {
@@ -62,8 +63,8 @@ const isValidNIC = (nic) => {
     return oldNicRegex.test(nic) || newNicRegex.test(nic);
 };
 
-// Register a new deed
-router.post('/', auth, async (req, res) => {
+// Register a new deed (Internal users only)
+router.post('/', auth, requireInternalUser, async (req, res) => {
     try {
         const { landTitleNumber, deedNumber, ownerNIC } = req.body;
 

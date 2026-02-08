@@ -13,8 +13,18 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['superadmin', 'admin', 'officer'],
+        enum: ['superadmin', 'admin', 'officer', 'lawyer', 'notary'],
         default: 'admin',
+    },
+    userType: {
+        type: String,
+        enum: ['internal', 'external'],
+        default: 'internal',
+    },
+    profession: {
+        type: String,
+        enum: ['admin', 'officer', 'lawyer', 'notary'],
+        required: function() { return this.userType === 'external'; }
     },
     createdAt: {
         type: Date,
