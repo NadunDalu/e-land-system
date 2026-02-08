@@ -26,7 +26,19 @@ api.interceptors.response.use(
         if (error.response && error.response.status === 401) {
             localStorage.removeItem('token');
             localStorage.removeItem('isAdminLoggedIn');
-            window.location.href = '/admin/login';
+            localStorage.removeItem('isExternalLoggedIn');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userType');
+            localStorage.removeItem('username');
+            localStorage.removeItem('profession');
+            
+            // Redirect based on user type
+            const userType = localStorage.getItem('userType');
+            if (userType === 'external') {
+                window.location.href = '/';
+            } else {
+                window.location.href = '/admin/login';
+            }
         }
         return Promise.reject(error);
     }

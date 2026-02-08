@@ -5,6 +5,52 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 
+// Register External User (Lawyer/Notary)
+router.post('/register-external', async (req, res) => {
+    try {
+        const { username, password, profession } = req.body;
+
+        // Validate profession
+        if (!['lawyer', 'notary'].includes(profession)) {
+            return res.status(400).json({ message: 'Invalid profession. Must be lawyer or notary.' });
+        }
+
+        // Check if user exists
+        let user = await User.findOne({ username });
+        if (user) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        user = new User({
+            username,
+            passwordHash,
+            role: profession,
+            userType: 'external',
+            profession
+        });
+
+        await user.save();
+
+        // Log registration
+        const log = new AuditLog({
+            transactionId: `REG-EXT-${Date.now()}`,
+            action: 'create user',
+            performedBy: 'system',
+            details: `External user registered: ${username} (${profession})`
+        });
+        await log.save();
+
+        res.status(201).json({ message: `${profession} user registered successfully` });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 // Register Admin (Seed or new admin)
 router.post('/register', async (req, res) => {
     try {
@@ -64,8 +110,10 @@ router.post('/login', async (req, res) => {
         const payload = {
             user: {
                 id: user.id,
-                username: user.username, // Added username to payload
-                role: user.role
+                username: user.username,
+                role: user.role,
+                userType: user.userType || 'internal',
+                profession: user.profession
             }
         };
 
@@ -89,6 +137,8 @@ router.post('/login', async (req, res) => {
                     user: {
                         username: user.username,
                         role: user.role,
+                        userType: user.userType || 'internal',
+                        profession: user.profession,
                         mustChangePassword: user.mustChangePassword
                     }
                 });
