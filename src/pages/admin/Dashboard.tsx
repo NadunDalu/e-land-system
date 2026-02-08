@@ -64,7 +64,11 @@ const AdminDashboard = () => {
         ]);
 
         const deeds = deedsRes.data;
-        const auditLogs = auditRes.data;
+        // Audit Logs API now returns { logs, totalPages, ... }
+        // We use a larger limit for dashboard stats to get a reasonable sample, 
+        // essentially treating it as "recent" stats.
+        // Ideally we would have a dedicated /stats endpoint.
+        const auditLogs = auditRes.data.logs || [];
 
         // Calculate Stats
         const totalDeeds = deeds.length;

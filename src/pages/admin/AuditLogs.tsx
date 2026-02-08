@@ -32,43 +32,69 @@ const AuditLogs = () => {
 
   const { toast } = useToast();
 
+
   const [searchFilters, setSearchFilters] = useState({
     deedNumber: '',
     action: '',
     performedBy: '',
   });
 
-  const [allLogs, setAllLogs] = useState<AuditLogEntry[]>([]);
-  const [filteredLogs, setFilteredLogs] = useState<AuditLogEntry[]>([]);
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 10;
+
+  const fetchLogs = async () => {
+    setIsLoading(true);
+    try {
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        ...searchFilters
+      });
+
+      // Remove empty filters
+      if (!searchFilters.deedNumber) queryParams.delete('deedNumber');
+      if (!searchFilters.action || searchFilters.action === 'All') queryParams.delete('action');
+      if (!searchFilters.performedBy) queryParams.delete('performedBy');
+
+      const response = await api.get(`/audit?${queryParams.toString()}`);
+      setLogs(response.data.logs);
+      setTotalPages(response.data.totalPages);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch audit logs.",
+      });
+      setLogs([]); // Reset logs on error or keep previous? Resetting is safer to avoid confusion
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [currentPage]); // Fetch when page changes
 
+  // Debounce filter changes
   useEffect(() => {
-    // Client-side filtering
-    let filtered = [...allLogs];
+    const timer = setTimeout(() => {
+      if (currentPage !== 1) {
+        setCurrentPage(1); // Reset to page 1 which will trigger fetch
+      } else {
+        fetchLogs(); // If already on page 1, manually trigger
+      }
+    }, 500);
 
-    if (searchFilters.deedNumber) {
-      filtered = filtered.filter(log =>
-        log.deedNumber.toLowerCase().includes(searchFilters.deedNumber.toLowerCase())
-      );
-    }
-
-    if (searchFilters.action && searchFilters.action !== 'All') {
-      filtered = filtered.filter(log => log.action === searchFilters.action);
-    }
-
-    if (searchFilters.performedBy) {
-      filtered = filtered.filter(log =>
-        log.performedBy.toLowerCase().includes(searchFilters.performedBy.toLowerCase())
-      );
-    }
-
-    setFilteredLogs(filtered);
-  }, [searchFilters, allLogs]);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchFilters]);
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
@@ -85,26 +111,6 @@ const AuditLogs = () => {
       navigate('/admin/dashboard');
     }
   }, [navigate]);
-
-  // Logout logic handled in Sidebar
-  // Menu items handled in Sidebar
-
-  const fetchLogs = async () => {
-    setIsLoading(true);
-    try {
-      const response = await api.get('/audit');
-      setAllLogs(response.data);
-    } catch (error) {
-      console.error('Error fetching audit logs:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch audit logs.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleFilterChange = (field: string, value: string) => {
     setSearchFilters(prev => ({ ...prev, [field]: value }));
@@ -263,14 +269,14 @@ const AuditLogs = () => {
             <Card className="glass border-0 shadow-lg overflow-hidden">
               <CardHeader className="border-b border-border/40 bg-muted/20 pb-4">
                 <CardTitle className="text-lg">
-                  Transaction History <span className="text-muted-foreground font-normal text-sm ml-2">({filteredLogs.length} events)</span>
+                  Transaction History <span className="text-muted-foreground font-normal text-sm ml-2">({logs.length} on this page)</span>
                 </CardTitle>
                 <CardDescription>
                   Immutable record of all system activities
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                {filteredLogs.length === 0 ? (
+                {logs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
                       <Search className="w-8 h-8 opacity-50" />
@@ -292,7 +298,7 @@ const AuditLogs = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredLogs.map((log) => {
+                        {logs.map((log) => {
                           const { date, time } = formatTimestamp(log.timestamp);
                           return (
                             <TableRow key={log._id || log.id} className="hover:bg-muted/30 transition-colors">
@@ -318,6 +324,33 @@ const AuditLogs = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1 || isLoading}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages || isLoading}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </div>
