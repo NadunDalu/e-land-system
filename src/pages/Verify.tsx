@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import MainLayout from '@/components/layout/MainLayout';
-import { findDeedByNumber, DeedRecord } from '@/lib/mockData';
+import { DeedRecord } from '@/types';
+import api from '@/lib/api';
 
 const Verify = () => {
   const { t } = useLanguage();
@@ -29,13 +30,28 @@ const Verify = () => {
 
     setIsSearching(true);
     setHasSearched(true);
+    setResult(null);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      // Use the general search endpoint which covers deedNumber and landTitleNumber
+      const response = await api.get(`/deeds?search=${searchValue.trim()}`);
 
-    const found = findDeedByNumber(searchValue.trim());
-    setResult(found || 'not_found');
-    setIsSearching(false);
+      if (response.data && response.data.length > 0) {
+        // Try to find an exact match first
+        const exactMatch = response.data.find((d: DeedRecord) =>
+          d.deedNumber.toLowerCase() === searchValue.trim().toLowerCase() ||
+          d.landTitleNumber.toLowerCase() === searchValue.trim().toLowerCase()
+        );
+        setResult(exactMatch || response.data[0]);
+      } else {
+        setResult('not_found');
+      }
+    } catch (error) {
+      console.error('Error verifying deed:', error);
+      setResult('not_found'); // Treat error as not found for now, or could show specific error
+    } finally {
+      setIsSearching(false);
+    }
 
     setSearchParams({ deed: searchValue.trim() });
   };

@@ -16,33 +16,101 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import MainLayout from '@/components/layout/MainLayout';
-import { mockDashboardStats, getRecentActivity } from '@/lib/mockData';
+import Sidebar from '@/components/layout/Sidebar';
+
+import { AuditLogEntry, DeedRecord } from '@/types';
+import api from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 const AdminDashboard = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
-    if (!isLoggedIn) {
-      navigate('/admin/login');
-    } else {
-      // Simulate loading data
-      setTimeout(() => setLoading(false), 800);
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('isAdminLoggedIn');
+      navigate('/');
     }
-  }, [navigate]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('isAdminLoggedIn');
-    navigate('/');
   };
 
-  const stats = [
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalDeeds: 0,
+    pendingTransfers: 0,
+    todayVerifications: 0,
+    activeUsers: 1, // Default to 1 (current admin)
+  });
+  const [recentActivity, setRecentActivity] = useState<AuditLogEntry[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
+      if (!isLoggedIn) {
+        navigate('/admin/login');
+        return;
+      }
+
+      try {
+        const [deedsRes, auditRes] = await Promise.all([
+          api.get('/deeds'),
+          api.get('/audit')
+        ]);
+
+        const deeds = deedsRes.data;
+        // Audit Logs API now returns { logs, totalPages, ... }
+        // We use a larger limit for dashboard stats to get a reasonable sample, 
+        // essentially treating it as "recent" stats.
+        // Ideally we would have a dedicated /stats endpoint.
+        const auditLogs = auditRes.data.logs || [];
+
+        // Calculate Stats
+        const totalDeeds = deeds.length;
+        const pendingTransfers = deeds.filter((d: DeedRecord) => d.status === 'pending').length; // Assuming 'pending' status exists or we infer it
+
+        // Today's verifications
+        const today = new Date().toDateString();
+        const todayVerifications = auditLogs.filter((log: AuditLogEntry) =>
+          log.action === 'verify' && new Date(log.timestamp).toDateString() === today
+        ).length;
+
+        // Active Users (Distinct users in logs)
+        const uniqueUsers = new Set(auditLogs.map((log: AuditLogEntry) => log.performedBy));
+
+        setStats({
+          totalDeeds,
+          pendingTransfers, // Or maybe check logs for transfer requests? For now, deeds status.
+          todayVerifications,
+          activeUsers: uniqueUsers.size || 1
+        });
+
+        setRecentActivity(auditLogs.slice(0, 5));
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load dashboard data.",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [navigate, toast]);
+
+  const statsCards = [
     {
       label: t.dashboard.stats.totalDeeds,
-      value: mockDashboardStats.totalDeeds,
+      value: stats.totalDeeds,
       icon: FileCheck,
       color: 'from-blue-500 to-blue-600',
       bg: 'bg-blue-500/10',
@@ -50,7 +118,7 @@ const AdminDashboard = () => {
     },
     {
       label: t.dashboard.stats.pendingTransfers,
-      value: mockDashboardStats.pendingTransfers,
+      value: stats.pendingTransfers,
       icon: ArrowUpDown,
       color: 'from-amber-500 to-amber-600',
       bg: 'bg-amber-500/10',
@@ -58,7 +126,7 @@ const AdminDashboard = () => {
     },
     {
       label: t.dashboard.stats.todayVerifications,
-      value: mockDashboardStats.todayVerifications,
+      value: stats.todayVerifications,
       icon: Search,
       color: 'from-emerald-500 to-emerald-600',
       bg: 'bg-emerald-500/10',
@@ -66,7 +134,7 @@ const AdminDashboard = () => {
     },
     {
       label: t.dashboard.stats.activeUsers,
-      value: mockDashboardStats.activeUsers,
+      value: stats.activeUsers,
       icon: Users,
       color: 'from-purple-500 to-purple-600',
       bg: 'bg-purple-500/10',
@@ -74,15 +142,9 @@ const AdminDashboard = () => {
     },
   ];
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: t.dashboard.menu.overview, path: '/admin/dashboard' },
-    { icon: FilePlus, label: t.dashboard.menu.registerDeed, path: '/admin/register' },
-    { icon: ArrowRightLeft, label: t.dashboard.menu.transferDeed, path: '/admin/transfer' },
-    { icon: Search, label: t.dashboard.menu.searchDeeds, path: '/admin/search' },
-    { icon: FileText, label: t.dashboard.menu.auditLogs, path: '/admin/audit' },
-  ];
 
-  const recentActivity = getRecentActivity(5);
+
+
 
   if (loading) {
     return (
@@ -100,81 +162,12 @@ const AdminDashboard = () => {
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Sidebar */}
-          <aside className="lg:w-72 flex-shrink-0 space-y-8">
-            <div className="glass-card rounded-2xl p-6 border-l-4 border-l-primary hidden lg:block">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="font-bold text-xl text-primary">AD</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">Admin Portal</h3>
-                  <p className="text-xs text-muted-foreground">Government Officer</p>
-                </div>
-              </div>
-              <div className="space-y-1">
-                {menuItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${location.pathname === item.path
-                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                  >
-                    <item.icon className="w-5 h-5 relative z-10" />
-                    <span className="font-medium relative z-10">{item.label}</span>
-                    {location.pathname === item.path && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 opacity-100 z-0"></div>
-                    )}
-                  </Link>
-                ))}
-              </div>
+          <Sidebar />
 
-              <div className="mt-8 pt-6 border-t border-border/40">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <button
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 w-full transition-colors"
-                    >
-                      <LogOut className="w-5 h-5" />
-                      <span className="font-medium">{t.nav.logout}</span>
-                    </button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{t.dashboard.logoutConfirm.title}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {t.dashboard.logoutConfirm.message}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>{t.dashboard.logoutConfirm.cancel}</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        {t.dashboard.logoutConfirm.confirm}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-
-            {/* Mobile Nav (visible only on small screens) */}
-            <div className="lg:hidden glass-card rounded-xl p-4 flex overflow-x-auto gap-4 scrollbar-hide">
-              {menuItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex flex-col items-center justify-center min-w-[5rem] p-3 rounded-xl gap-2 transition-colors ${location.pathname === item.path
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 text-muted-foreground'
-                    }`}
-                >
-                  <item.icon className="w-6 h-6" />
-                  <span className="text-[10px] font-medium text-center truncate w-full">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          </aside>
+          {/* Mobile Nav (visible only on small screens) */}
+          <div className="lg:hidden">
+            <Sidebar mobile className="mb-6" />
+          </div>
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
@@ -199,7 +192,7 @@ const AdminDashboard = () => {
 
             {/* Stats Grid */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {stats.map((stat, index) => (
+              {statsCards.map((stat, index) => (
                 <div
                   key={index}
                   className="glass-card rounded-2xl p-6 hover:-translate-y-1 transition-transform duration-300 relative overflow-hidden group"
@@ -232,25 +225,29 @@ const AdminDashboard = () => {
                         </CardTitle>
                         <CardDescription>Latest transactions recorded on the immutable ledger</CardDescription>
                       </div>
-                      <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={() => navigate('/admin/search')}>
-                        View All <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
+                      {localStorage.getItem('userRole') === 'superadmin' && (
+                        <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={() => navigate('/admin/audit')}>
+                          View All <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="divide-y divide-border/40">
                       {recentActivity.map((activity) => (
-                        <div key={activity.id} className="p-4 sm:p-6 hover:bg-muted/30 transition-colors flex items-center justify-between group">
+                        <div key={activity._id || activity.id} className="p-4 sm:p-6 hover:bg-muted/30 transition-colors flex items-center justify-between group">
                           <div className="flex items-start gap-4">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${activity.action === 'register' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
                               activity.action === 'transfer' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
                                 activity.action === 'login' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' :
-                                  'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                                  activity.action === 'logout' ? 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400' :
+                                    'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
                               }`}>
                               {activity.action === 'register' ? <FilePlus className="w-5 h-5" /> :
                                 activity.action === 'transfer' ? <ArrowRightLeft className="w-5 h-5" /> :
                                   activity.action === 'login' ? <Key className="w-5 h-5" /> :
-                                    <FileCheck className="w-5 h-5" />}
+                                    activity.action === 'logout' ? <LogOut className="w-5 h-5" /> :
+                                      <FileCheck className="w-5 h-5" />}
                             </div>
                             <div>
                               <p className="font-medium text-foreground group-hover:text-primary transition-colors">

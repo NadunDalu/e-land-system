@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FilePlus, ArrowRightLeft, Search, FileText, LogOut,
-  Eye, MapPin, Calendar, Filter, X
+  Eye, MapPin, Calendar, Filter, X, Edit, Save, Loader2, Trash2, CheckCircle2
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -25,14 +25,31 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import MainLayout from '@/components/layout/MainLayout';
-import { mockDeeds, DeedRecord } from '@/lib/mockData';
+import Sidebar from '@/components/layout/Sidebar';
+import { DeedRecord } from '@/types';
+import api from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 const SearchDeeds = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { toast } = useToast();
 
   const [searchFilters, setSearchFilters] = useState({
     landTitleNumber: '',
@@ -42,66 +59,71 @@ const SearchDeeds = () => {
     status: '',
   });
 
-  const [filteredDeeds, setFilteredDeeds] = useState<DeedRecord[]>(mockDeeds);
+  const [filteredDeeds, setFilteredDeeds] = useState<DeedRecord[]>([]);
   const [selectedDeed, setSelectedDeed] = useState<DeedRecord | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editFormData, setEditFormData] = useState<Partial<DeedRecord>>({});
+
+  // Delete State
+  const [deedToDelete, setDeedToDelete] = useState<DeedRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteSuccessDialog, setShowDeleteSuccessDialog] = useState(false);
+  const [deletedDeedNumber, setDeletedDeedNumber] = useState('');
+
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchDeeds();
+  }, [searchFilters]);
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
+    const role = localStorage.getItem('userRole');
+    const username = localStorage.getItem('username'); // Ensure this is set on login!
+    setUserRole(role);
+    setCurrentUsername(username);
+
     if (!isLoggedIn) {
       navigate('/admin/login');
     }
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAdminLoggedIn');
-    navigate('/');
-  };
-
-  const menuItems = [
-    { icon: LayoutDashboard, label: t.dashboard.menu.overview, path: '/admin/dashboard' },
-    { icon: FilePlus, label: t.dashboard.menu.registerDeed, path: '/admin/register' },
-    { icon: ArrowRightLeft, label: t.dashboard.menu.transferDeed, path: '/admin/transfer' },
-    { icon: Search, label: t.dashboard.menu.searchDeeds, path: '/admin/search' },
-    { icon: FileText, label: t.dashboard.menu.auditLogs, path: '/admin/audit' },
-  ];
+  // Logout logic handled in Sidebar
+  // Menu items handled in Sidebar
 
   const districts = ['All', 'Colombo', 'Kandy', 'Galle', 'Jaffna', 'Kurunegala'];
 
+  const fetchDeeds = async () => {
+    setIsLoading(true);
+    try {
+      // Build query params
+      const params = new URLSearchParams();
+      if (searchFilters.landTitleNumber) params.append('landTitleNumber', searchFilters.landTitleNumber);
+      if (searchFilters.deedNumber) params.append('deedNumber', searchFilters.deedNumber);
+      if (searchFilters.ownerName) params.append('ownerName', searchFilters.ownerName);
+      if (searchFilters.district && searchFilters.district !== 'All') params.append('district', searchFilters.district);
+      if (searchFilters.status && searchFilters.status !== 'All') params.append('status', searchFilters.status);
+
+      const response = await api.get(`/deeds?${params.toString()}`);
+      setFilteredDeeds(response.data);
+    } catch (error) {
+      console.error('Error fetching deeds:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch deeds. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleFilterChange = (field: string, value: string) => {
-    const newFilters = { ...searchFilters, [field]: value };
-    setSearchFilters(newFilters);
-
-    // Filter deeds based on all filters
-    let filtered = mockDeeds;
-
-    if (newFilters.landTitleNumber) {
-      filtered = filtered.filter(deed =>
-        deed.landTitleNumber.toLowerCase().includes(newFilters.landTitleNumber.toLowerCase())
-      );
-    }
-
-    if (newFilters.deedNumber) {
-      filtered = filtered.filter(deed =>
-        deed.deedNumber.toLowerCase().includes(newFilters.deedNumber.toLowerCase())
-      );
-    }
-
-    if (newFilters.ownerName) {
-      filtered = filtered.filter(deed =>
-        deed.ownerName.toLowerCase().includes(newFilters.ownerName.toLowerCase())
-      );
-    }
-
-    if (newFilters.district && newFilters.district !== 'All') {
-      filtered = filtered.filter(deed => deed.district === newFilters.district);
-    }
-
-    if (newFilters.status && newFilters.status !== 'All') {
-      filtered = filtered.filter(deed => deed.status === newFilters.status);
-    }
-
-    setFilteredDeeds(filtered);
+    setSearchFilters(prev => ({ ...prev, [field]: value }));
   };
 
   const handleViewDeed = (deed: DeedRecord) => {
@@ -117,7 +139,6 @@ const SearchDeeds = () => {
       district: '',
       status: '',
     });
-    setFilteredDeeds(mockDeeds);
   };
 
   const getStatusBadge = (status: string) => {
@@ -133,70 +154,80 @@ const SearchDeeds = () => {
     }
   };
 
+  const handleEditDeed = (deed: DeedRecord) => {
+    setSelectedDeed(deed);
+    setEditFormData({ ...deed });
+    setShowEditDialog(true);
+  };
+
+  const handleEditInputChange = (field: string, value: string) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleUpdateDeed = async () => {
+    if (!selectedDeed) return;
+    setIsUpdating(true);
+    try {
+      const { _id, id, ...rest } = editFormData; // Avoid sending ID in body if not needed, but we use ID in params
+      const deedId = _id || id;
+
+      await api.put(`/deeds/${deedId}`, editFormData);
+
+      toast({
+        title: t.common.success,
+        description: "Deed updated successfully",
+      });
+
+      setShowEditDialog(false);
+      fetchDeeds(); // Refresh list
+    } catch (error) {
+      console.error('Error updating deed:', error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "Could not update deed details.",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteDeed = async () => {
+    if (!deedToDelete) return;
+    setIsDeleting(true);
+    try {
+      // Use either _id or id
+      const idToDelete = deedToDelete._id || deedToDelete.id;
+      await api.delete(`/deeds/${idToDelete}`);
+
+      setDeletedDeedNumber(deedToDelete.deedNumber);
+      setDeedToDelete(null);
+      setShowDeleteSuccessDialog(true);
+      fetchDeeds();
+    } catch (error) {
+      console.error('Error deleting deed:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete deed.",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Sidebar */}
-          <aside className="lg:w-72 flex-shrink-0 space-y-8">
-            <div className="glass-card rounded-2xl p-6 border-l-4 border-l-primary hidden lg:block">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="font-bold text-xl text-primary">AD</span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">Admin Portal</h3>
-                  <p className="text-xs text-muted-foreground">Government Officer</p>
-                </div>
-              </div>
-              <div className="space-y-1">
-                {menuItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${location.pathname === item.path
-                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                  >
-                    <item.icon className="w-5 h-5 relative z-10" />
-                    <span className="font-medium relative z-10">{item.label}</span>
-                    {location.pathname === item.path && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 opacity-100 z-0"></div>
-                    )}
-                  </Link>
-                ))}
-              </div>
+          <Sidebar />
 
-              <div className="mt-8 pt-6 border-t border-border/40">
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 w-full transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="font-medium">{t.nav.logout}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile Nav */}
-            <div className="lg:hidden glass-card rounded-xl p-4 flex overflow-x-auto gap-4 scrollbar-hide">
-              {menuItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex flex-col items-center justify-center min-w-[5rem] p-3 rounded-xl gap-2 transition-colors ${location.pathname === item.path
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 text-muted-foreground'
-                    }`}
-                >
-                  <item.icon className="w-6 h-6" />
-                  <span className="text-[10px] font-medium text-center truncate w-full">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          </aside>
+          {/* Mobile Nav */}
+          <div className="lg:hidden">
+            <Sidebar mobile className="mb-6" />
+          </div>
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
@@ -335,6 +366,35 @@ const SearchDeeds = () => {
                                 <Eye className="w-3.5 h-3.5" />
                                 <span className="sr-only sm:not-sr-only">{t.common.view}</span>
                               </Button>
+
+                              {/* Edit Button - Restricted to Super Admin or Creator */}
+                              {/* Assuming 'username' is stored in localStorage or decoded token. 
+                                  If not, we fallback to just superadmin check if username missing, 
+                                  but we should get username. */}
+                              {(userRole === 'superadmin' || currentUsername === deed.registeredBy) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditDeed(deed)}
+                                  className="h-8 gap-1 hover:border-blue-500/50 hover:text-blue-600 transition-colors ml-2"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                  <span className="sr-only sm:not-sr-only">Edit</span>
+                                </Button>
+                              )}
+
+
+                              {userRole === 'superadmin' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setDeedToDelete(deed)}
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 ml-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span className="sr-only">Delete</span>
+                                </Button>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -439,7 +499,151 @@ const SearchDeeds = () => {
           )}
         </DialogContent>
       </Dialog>
-    </MainLayout>
+
+      {/* Edit Deed Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Edit className="w-5 h-5 text-primary" />
+              Edit Deed Details
+            </DialogTitle>
+            <DialogDescription>
+              Update record information for land title <span className="font-mono text-primary">{selectedDeed?.landTitleNumber}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-ownerName">Owner Name</Label>
+                <Input
+                  id="edit-ownerName"
+                  value={editFormData.ownerName || ''}
+                  onChange={(e) => handleEditInputChange('ownerName', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-ownerNIC">Owner NIC</Label>
+                <Input
+                  id="edit-ownerNIC"
+                  value={editFormData.ownerNIC || ''}
+                  onChange={(e) => handleEditInputChange('ownerNIC', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-landArea">Land Area</Label>
+                <Input
+                  id="edit-landArea"
+                  value={editFormData.landArea || ''}
+                  onChange={(e) => handleEditInputChange('landArea', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-surveyRef">Survey Reference</Label>
+                <Input
+                  id="edit-surveyRef"
+                  value={editFormData.surveyRef || ''}
+                  onChange={(e) => handleEditInputChange('surveyRef', e.target.value)}
+                />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="edit-landLocation">Location</Label>
+                <Input
+                  id="edit-landLocation"
+                  value={editFormData.landLocation || ''}
+                  onChange={(e) => handleEditInputChange('landLocation', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setShowEditDialog(false)}
+                disabled={isUpdating}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateDeed}
+                disabled={isUpdating}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Alert */}
+      <AlertDialog open={!!deedToDelete} onOpenChange={(open) => !open && setDeedToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Deed Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete deed <strong>{deedToDelete?.deedNumber}</strong>?
+              This action cannot be undone and will be permanently logged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteDeed();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Record'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Success Dialog */}
+      <Dialog open={showDeleteSuccessDialog} onOpenChange={setShowDeleteSuccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
+              <Trash2 className="h-6 w-6 text-red-600" />
+            </div>
+            <DialogTitle className="text-center text-xl">Deed Deleted</DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              Deed record <strong>{deletedDeedNumber}</strong> has been permanently removed from the registry.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center pt-4">
+            <Button
+              type="button"
+              className="w-full sm:w-auto min-w-[120px]"
+              onClick={() => setShowDeleteSuccessDialog(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </MainLayout >
   );
 };
 
