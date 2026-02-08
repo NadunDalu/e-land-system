@@ -22,7 +22,7 @@ export interface AuditLogEntry {
     id?: string; // Optional for backend response compatibility
     transactionId: string;
     deedNumber: string;
-    action: 'register' | 'transfer' | 'update' | 'verify' | 'login';
+    action: 'register' | 'transfer' | 'update' | 'verify' | 'login' | 'logout';
     performedBy: string;
     timestamp: string;
     details?: string;

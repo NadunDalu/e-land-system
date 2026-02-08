@@ -132,4 +132,43 @@ router.put('/transfer', auth, async (req, res) => {
     }
 });
 
+// Update Deed Details
+router.put('/:id', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+
+        // Validation (optional, but good practice)
+        if (updateData.ownerNIC && !isValidNIC(updateData.ownerNIC)) {
+            return res.status(400).json({ message: 'Invalid NIC format' });
+        }
+
+        const deed = await Deed.findById(id);
+        if (!deed) return res.status(404).json({ message: 'Deed not found' });
+
+        // Update fields
+        Object.assign(deed, updateData);
+        // Ensure to update the 'lastVerified' or similar timestamp if needed
+        // deed.lastVerified = new Date(); // If tracking separate update time
+
+        await deed.save();
+
+        // Create Audit Log
+        const log = new AuditLog({
+            transactionId: `TX-${Date.now()}`,
+            deedNumber: deed.deedNumber,
+            action: 'update',
+            performedBy: req.user.user.username || 'admin',
+            details: `Deed details updated for ${deed.deedNumber}`
+        });
+        await log.save();
+
+        res.json(deed);
+    } catch (err) {
+        console.error(err.message);
+        if (err.kind === 'ObjectId') return res.status(404).json({ message: 'Deed not found' });
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;

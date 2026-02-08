@@ -76,9 +76,16 @@ const AuditLogs = () => {
     }
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAdminLoggedIn');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('isAdminLoggedIn');
+      navigate('/');
+    }
   };
 
   const menuItems = [
@@ -136,6 +143,8 @@ const AuditLogs = () => {
         return <Badge variant="outline">{t.audit.actions.verify}</Badge>;
       case 'login':
         return <Badge className="bg-purple-500/15 text-purple-700 hover:bg-purple-500/25 border-purple-200 dark:text-purple-400 dark:border-purple-800">{t.audit.actions.login}</Badge>;
+      case 'logout':
+        return <Badge className="bg-gray-500/15 text-gray-700 hover:bg-gray-500/25 border-gray-200 dark:text-gray-400 dark:border-gray-800">Logout</Badge>;
       default:
         return <Badge variant="secondary">{action}</Badge>;
     }
@@ -277,6 +286,7 @@ const AuditLogs = () => {
                         <SelectItem value="update">{t.audit.actions.update}</SelectItem>
                         <SelectItem value="verify">{t.audit.actions.verify}</SelectItem>
                         <SelectItem value="login">{t.audit.actions.login}</SelectItem>
+                        <SelectItem value="logout">Logout</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

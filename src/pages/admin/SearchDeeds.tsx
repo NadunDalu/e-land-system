@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FilePlus, ArrowRightLeft, Search, FileText, LogOut,
-  Eye, MapPin, Calendar, Filter, X
+  Eye, MapPin, Calendar, Filter, X, Edit, Save, Loader2
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -49,7 +49,10 @@ const SearchDeeds = () => {
   const [filteredDeeds, setFilteredDeeds] = useState<DeedRecord[]>([]);
   const [selectedDeed, setSelectedDeed] = useState<DeedRecord | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editFormData, setEditFormData] = useState<Partial<DeedRecord>>({});
 
   useEffect(() => {
     fetchDeeds();
@@ -62,9 +65,16 @@ const SearchDeeds = () => {
     }
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAdminLoggedIn');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('isAdminLoggedIn');
+      navigate('/');
+    }
   };
 
   const menuItems = [
@@ -131,6 +141,44 @@ const SearchDeeds = () => {
         return <Badge variant="secondary" className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 border-amber-200 dark:text-amber-400 dark:border-amber-800">Pending</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const handleEditDeed = (deed: DeedRecord) => {
+    setSelectedDeed(deed);
+    setEditFormData({ ...deed });
+    setShowEditDialog(true);
+  };
+
+  const handleEditInputChange = (field: string, value: string) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleUpdateDeed = async () => {
+    if (!selectedDeed) return;
+    setIsUpdating(true);
+    try {
+      const { _id, id, ...rest } = editFormData; // Avoid sending ID in body if not needed, but we use ID in params
+      const deedId = _id || id;
+
+      await api.put(`/deeds/${deedId}`, editFormData);
+
+      toast({
+        title: t.common.success,
+        description: "Deed updated successfully",
+      });
+
+      setShowEditDialog(false);
+      fetchDeeds(); // Refresh list
+    } catch (error) {
+      console.error('Error updating deed:', error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "Could not update deed details.",
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -336,6 +384,15 @@ const SearchDeeds = () => {
                                 <Eye className="w-3.5 h-3.5" />
                                 <span className="sr-only sm:not-sr-only">{t.common.view}</span>
                               </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditDeed(deed)}
+                                className="h-8 gap-1 hover:border-blue-500/50 hover:text-blue-600 transition-colors ml-2"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                                <span className="sr-only sm:not-sr-only">Edit</span>
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -438,6 +495,93 @@ const SearchDeeds = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Deed Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Edit className="w-5 h-5 text-primary" />
+              Edit Deed Details
+            </DialogTitle>
+            <DialogDescription>
+              Update record information for land title <span className="font-mono text-primary">{selectedDeed?.landTitleNumber}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-ownerName">Owner Name</Label>
+                <Input
+                  id="edit-ownerName"
+                  value={editFormData.ownerName || ''}
+                  onChange={(e) => handleEditInputChange('ownerName', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-ownerNIC">Owner NIC</Label>
+                <Input
+                  id="edit-ownerNIC"
+                  value={editFormData.ownerNIC || ''}
+                  onChange={(e) => handleEditInputChange('ownerNIC', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-landArea">Land Area</Label>
+                <Input
+                  id="edit-landArea"
+                  value={editFormData.landArea || ''}
+                  onChange={(e) => handleEditInputChange('landArea', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-surveyRef">Survey Reference</Label>
+                <Input
+                  id="edit-surveyRef"
+                  value={editFormData.surveyRef || ''}
+                  onChange={(e) => handleEditInputChange('surveyRef', e.target.value)}
+                />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="edit-landLocation">Location</Label>
+                <Input
+                  id="edit-landLocation"
+                  value={editFormData.landLocation || ''}
+                  onChange={(e) => handleEditInputChange('landLocation', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-border/40">
+              <Button
+                variant="outline"
+                onClick={() => setShowEditDialog(false)}
+                disabled={isUpdating}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateDeed}
+                disabled={isUpdating}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </MainLayout>

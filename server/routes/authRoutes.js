@@ -92,4 +92,29 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// Logout Admin
+router.post('/logout', require('../middleware/authMiddleware'), async (req, res) => {
+    try {
+        const user = await User.findById(req.user.user.id).select('-passwordHash');
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Log Logout
+        const log = new AuditLog({
+            transactionId: `LOGOUT-${Date.now()}`,
+            action: 'logout',
+            performedBy: user.username,
+            details: 'Admin logout successful'
+        });
+        await log.save();
+
+        res.json({ message: 'Logout successful' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;

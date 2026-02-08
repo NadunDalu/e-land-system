@@ -27,9 +27,16 @@ const AdminDashboard = () => {
   const location = useLocation();
   const { toast } = useToast();
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAdminLoggedIn');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('isAdminLoggedIn');
+      navigate('/');
+    }
   };
 
   const [loading, setLoading] = useState(true);
@@ -288,7 +295,7 @@ const AdminDashboard = () => {
                         </CardTitle>
                         <CardDescription>Latest transactions recorded on the immutable ledger</CardDescription>
                       </div>
-                      <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={() => navigate('/admin/search')}>
+                      <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={() => navigate('/admin/audit')}>
                         View All <ChevronRight className="w-4 h-4 ml-1" />
                       </Button>
                     </div>
@@ -301,12 +308,14 @@ const AdminDashboard = () => {
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${activity.action === 'register' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
                               activity.action === 'transfer' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
                                 activity.action === 'login' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' :
-                                  'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                                  activity.action === 'logout' ? 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400' :
+                                    'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
                               }`}>
                               {activity.action === 'register' ? <FilePlus className="w-5 h-5" /> :
                                 activity.action === 'transfer' ? <ArrowRightLeft className="w-5 h-5" /> :
                                   activity.action === 'login' ? <Key className="w-5 h-5" /> :
-                                    <FileCheck className="w-5 h-5" />}
+                                    activity.action === 'logout' ? <LogOut className="w-5 h-5" /> :
+                                      <FileCheck className="w-5 h-5" />}
                             </div>
                             <div>
                               <p className="font-medium text-foreground group-hover:text-primary transition-colors">
