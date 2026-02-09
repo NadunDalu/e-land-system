@@ -27,12 +27,15 @@ import api from '@/lib/api';
 interface ExternalUser {
   _id: string;
   fullName: string;
+  email: string;
+  phoneNumber: string;
   username: string;
   profession: string;
   gender: string;
   province: string;
   district: string;
   registrationStatus: 'pending' | 'approved' | 'rejected';
+  emailVerified: boolean;
   registrationDate: string;
   approvedBy?: string;
   approvedAt?: string;
@@ -292,6 +295,27 @@ const ExternalUserManagement = () => {
                               <Calendar className="w-4 h-4 text-muted-foreground" />
                               <span className="text-muted-foreground">Applied:</span>
                               <span>{new Date(user.registrationDate).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">Email:</span>
+                              <span>{user.email}</span>
+                              {user.emailVerified ? (
+                                <span title="Email Verified">
+                                  <CheckCircle className="w-4 h-4 text-green-500" />
+                                </span>
+                              ) : (
+                                <span title="Email Not Verified">
+                                  <XCircle className="w-4 h-4 text-red-500" />
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">Phone:</span>
+                              <span>{user.phoneNumber}</span>
                             </div>
                           </div>
                         </div>

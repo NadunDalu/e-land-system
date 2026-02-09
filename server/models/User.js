@@ -32,6 +32,18 @@ const userSchema = new mongoose.Schema({
         required: function() { return this.userType === 'external'; },
         trim: true,
     },
+    email: {
+        type: String,
+        required: function() { return this.userType === 'external'; },
+        trim: true,
+        lowercase: true,
+        match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    },
+    phoneNumber: {
+        type: String,
+        required: function() { return this.userType === 'external'; },
+        match: [/^\+94[0-9]{9}$/, 'Please enter a valid Sri Lankan phone number (+94xxxxxxxxx)']
+    },
     gender: {
         type: String,
         enum: ['male', 'female', 'other'],
@@ -44,6 +56,17 @@ const userSchema = new mongoose.Schema({
     district: {
         type: String,
         required: function() { return this.userType === 'external'; }
+    },
+    // Email verification fields
+    emailVerified: {
+        type: Boolean,
+        default: false
+    },
+    emailVerificationToken: {
+        type: String
+    },
+    emailVerificationExpires: {
+        type: Date
     },
     // Registration and approval fields
     registrationStatus: {
