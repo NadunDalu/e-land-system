@@ -5,6 +5,8 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+// Trigger restart for .env update
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 

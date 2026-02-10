@@ -8,11 +8,12 @@ const createAdmin = async () => {
         await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/eland');
         console.log('Connected to MongoDB');
 
-        // Admin user details
+        // Create standard admin
         const adminData = {
-            username: 'newadmin',
-            password: 'admin123',
-            role: 'superadmin'
+            username: 'admin',
+            password: 'password123',
+            role: 'superadmin',
+            userType: 'internal'
         };
 
         console.log('\n=== Creating New Admin User ===');
@@ -24,17 +25,17 @@ const createAdmin = async () => {
         const existingUser = await User.findOne({ username: adminData.username });
         if (existingUser) {
             console.log(`\n❌ User '${adminData.username}' already exists!`);
-            
+
             // Ask if you want to update password
             console.log('\n=== Updating Password ===');
             const salt = await bcrypt.genSalt(10);
             const passwordHash = await bcrypt.hash(adminData.password, salt);
-            
+
             existingUser.passwordHash = passwordHash;
             existingUser.role = adminData.role;
             existingUser.userType = 'internal';
             await existingUser.save();
-            
+
             console.log(`✅ Password updated for '${adminData.username}'`);
         } else {
             // Create new admin user
@@ -53,11 +54,11 @@ const createAdmin = async () => {
         }
 
         console.log('\n=== All Admin Users ===');
-        const adminUsers = await User.find({ 
+        const adminUsers = await User.find({
             userType: 'internal',
             role: { $in: ['admin', 'superadmin'] }
         }).select('username role userType');
-        
+
         adminUsers.forEach(user => {
             console.log(`- Username: ${user.username}, Role: ${user.role}`);
         });
