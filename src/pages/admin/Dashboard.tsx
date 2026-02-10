@@ -58,9 +58,10 @@ const AdminDashboard = () => {
       }
 
       try {
-        const [deedsRes, auditRes] = await Promise.all([
+        const [deedsRes, auditRes, adminStatsRes] = await Promise.all([
           api.get('/deeds'),
-          api.get('/audit')
+          api.get('/audit'),
+          api.get('/auth/admin-stats')
         ]);
 
         const deeds = deedsRes.data;
@@ -80,14 +81,11 @@ const AdminDashboard = () => {
           log.action === 'verify' && new Date(log.timestamp).toDateString() === today
         ).length;
 
-        // Active Users (Distinct users in logs)
-        const uniqueUsers = new Set(auditLogs.map((log: AuditLogEntry) => log.performedBy));
-
         setStats({
           totalDeeds,
           pendingTransfers, // Or maybe check logs for transfer requests? For now, deeds status.
           todayVerifications,
-          activeUsers: uniqueUsers.size || 1
+          activeUsers: adminStatsRes.data.activeAdminCount || 1
         });
 
         setRecentActivity(auditLogs.slice(0, 5));

@@ -601,6 +601,17 @@ router.get('/users', require('../middleware/authMiddleware'), require('../middle
     }
 });
 
+// Get Admin Stats (Accessible to all admins)
+router.get('/admin-stats', require('../middleware/authMiddleware'), async (req, res) => {
+    try {
+        const count = await User.countDocuments({ userType: 'internal' });
+        res.json({ activeAdminCount: count });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 // Logout Admin
 router.post('/logout', require('../middleware/authMiddleware'), async (req, res) => {
     try {
