@@ -5,6 +5,7 @@ const Deed = require('../models/Deed');
 const AuditLog = require('../models/AuditLog');
 const auth = require('../middleware/authMiddleware');
 const { requireInternalUser, allowReadOnlyAccess } = require('../middleware/externalMiddleware');
+const { requireSuperAdmin } = require('../middleware/roleMiddleware');
 const { upload } = require('../config/cloudinary');
 
 // Helper function to generate SHA-256 hash
@@ -203,7 +204,7 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // Delete Deed (Super Admin Only)
-router.delete('/:id', auth, require('../middleware/roleMiddleware'), async (req, res) => {
+router.delete('/:id', auth, requireSuperAdmin, async (req, res) => {
     try {
         const deedToDelete = await Deed.findById(req.params.id);
 

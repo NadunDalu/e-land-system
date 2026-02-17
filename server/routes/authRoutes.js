@@ -7,8 +7,7 @@ const User = require('../models/User');
 const ExternalUser = require('../models/ExternalUser');
 const AuditLog = require('../models/AuditLog');
 const auth = require('../middleware/authMiddleware');
-const requireSuperAdmin = require('../middleware/roleMiddleware');
-const { requireSuperAdminOrSadmin } = require('../middleware/roleMiddleware');
+const { requireSuperAdmin, requireSuperAdminOrSadmin } = require('../middleware/roleMiddleware');
 const { generateOTP, sendOTPEmail, sendWelcomeEmail } = require('../services/emailService');
 
 // Register External User (Public endpoint)
@@ -220,7 +219,7 @@ router.post('/resend-otp', async (req, res) => {
 // Get pending external user registrations count (Super Admin or sadmin only)
 router.get('/pending-count', auth, requireSuperAdminOrSadmin, async (req, res) => {
     try {
-        const count = await ExternalUser.countDocuments({ 
+        const count = await ExternalUser.countDocuments({
             registrationStatus: 'pending',
             emailVerified: true
         });
@@ -552,7 +551,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Create New Admin User (Super Admin Only)
-router.post('/create-user', require('../middleware/authMiddleware'), require('../middleware/roleMiddleware'), async (req, res) => {
+router.post('/create-user', auth, requireSuperAdmin, async (req, res) => {
     try {
         const { username } = req.body; // Password is now auto-generated
 
@@ -637,7 +636,7 @@ router.post('/change-password', require('../middleware/authMiddleware'), async (
 });
 
 // Delete Admin User (Super Admin Only)
-router.delete('/users/:id', require('../middleware/authMiddleware'), require('../middleware/roleMiddleware'), async (req, res) => {
+router.delete('/users/:id', auth, requireSuperAdmin, async (req, res) => {
     try {
         const userToDelete = await User.findById(req.params.id);
 
@@ -675,7 +674,7 @@ router.delete('/users/:id', require('../middleware/authMiddleware'), require('..
 });
 
 // Get All Admin Users (Super Admin Only)
-router.get('/users', require('../middleware/authMiddleware'), require('../middleware/roleMiddleware'), async (req, res) => {
+router.get('/users', auth, requireSuperAdmin, async (req, res) => {
     try {
         const users = await User.find({
             role: { $ne: 'superadmin' },
