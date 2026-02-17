@@ -8,6 +8,7 @@ const ExternalUser = require('../models/ExternalUser');
 const AuditLog = require('../models/AuditLog');
 const auth = require('../middleware/authMiddleware');
 const requireSuperAdmin = require('../middleware/roleMiddleware');
+const { requireSuperAdminOrSadmin } = require('../middleware/roleMiddleware');
 const { generateOTP, sendOTPEmail, sendWelcomeEmail } = require('../services/emailService');
 
 // Register External User (Public endpoint)
@@ -216,6 +217,22 @@ router.post('/resend-otp', async (req, res) => {
     }
 });
 
+// Get pending external user registrations count (Super Admin or sadmin only)
+router.get('/pending-count', auth, requireSuperAdminOrSadmin, async (req, res) => {
+    try {
+        const count = await ExternalUser.countDocuments({ 
+            registrationStatus: 'pending',
+            emailVerified: true
+        });
+
+        console.log(`[PENDING-COUNT] Found ${count} pending external users`);
+        res.json({ count });
+    } catch (err) {
+        console.error('Error fetching pending count:', err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Get pending external user registrations (Admin only)
 router.get('/pending-registrations', auth, requireSuperAdmin, async (req, res) => {
     try {
@@ -375,12 +392,14 @@ router.post('/login', async (req, res) => {
 
         // 1. Try finding in INTERNAL User collection
         user = await User.findOne({ username });
+        console.log(`[LOGIN] Internal user search result:`, user ? `Found ${user.username}` : 'Not found');
 
         // 2. If not found, try EXTERNAL User collection
         if (!user) {
             user = await ExternalUser.findOne({ username });
             if (user) {
                 isExternal = true;
+                console.log(`[LOGIN] External user found: ${user.username}`);
             }
         }
 
@@ -478,6 +497,8 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
+        console.log(`[LOGIN SUCCESS] User authenticated: ${user.username}`);
+
         // Create Token Payload
         const payload = {
             user: {
@@ -525,7 +546,7 @@ router.post('/login', async (req, res) => {
             }
         );
     } catch (err) {
-        console.error(err.message);
+        console.error('[LOGIN ERROR]', err.message);
         res.status(500).send('Server Error');
     }
 });

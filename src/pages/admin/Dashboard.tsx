@@ -48,10 +48,43 @@ const AdminDashboard = () => {
     activeUsers: 1, // Default to 1 (current admin)
   });
   const [recentActivity, setRecentActivity] = useState<AuditLogEntry[]>([]);
+  const [pendingNotifications, setPendingNotifications] = useState(0);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  const fetchPendingNotifications = async () => {
+    try {
+      const role = localStorage.getItem('userRole');
+      const username = localStorage.getItem('username');
+      
+      console.log('🔔 Fetching notifications for:', { role, username });
+      
+      // Only fetch for sadmin (superadmin)
+      if (role === 'superadmin' || username === 'sadmin') {
+        console.log('✅ User authorized for notifications, fetching...');
+        const response = await api.get('/auth/pending-count');
+        console.log('📊 Notification response:', response.data);
+        setPendingNotifications(response.data.count);
+      } else {
+        console.log('❌ User not authorized for notifications');
+      }
+    } catch (error) {
+      console.error('Error fetching pending notifications:', error);
+      setPendingNotifications(0);
+    }
+  };
+
+  const handleNotificationClick = () => {
+    navigate('/admin/external-users');
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
+      const role = localStorage.getItem('userRole');
+      const username = localStorage.getItem('username');
+      
+      setUserRole(role);
+      
       if (!isLoggedIn) {
         navigate('/admin/login');
         return;
@@ -90,6 +123,11 @@ const AdminDashboard = () => {
 
         setRecentActivity(auditLogs.slice(0, 5));
 
+        // Fetch notifications for sadmin
+        if (role === 'superadmin' || username === 'sadmin') {
+          await fetchPendingNotifications();
+        }
+
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         toast({
@@ -103,6 +141,26 @@ const AdminDashboard = () => {
     };
 
     fetchData();
+
+    // Set up notification refresh interval for sadmin
+    const role = localStorage.getItem('userRole');
+    const username = localStorage.getItem('username');
+    
+    if (role === 'superadmin' || username === 'sadmin') {
+      const interval = setInterval(fetchPendingNotifications, 30000); // Refresh every 30 seconds
+      
+      // Listen for custom refresh events
+      const handleRefresh = () => {
+        fetchPendingNotifications();
+      };
+      
+      window.addEventListener('refreshNotifications', handleRefresh);
+      
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('refreshNotifications', handleRefresh);
+      };
+    }
   }, [navigate, toast]);
 
   const statsCards = [
@@ -175,10 +233,22 @@ const AdminDashboard = () => {
                 <p className="text-muted-foreground mt-1">Here's what's happening in the registry today.</p>
               </div>
               <div className="flex items-center gap-3">
-                <Button variant="outline" size="icon" className="rounded-full relative">
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-destructive rounded-full border-2 border-background"></span>
-                </Button>
+                {(userRole === 'superadmin' || localStorage.getItem('username') === 'sadmin') && (
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="rounded-full relative"
+                    onClick={handleNotificationClick}
+                    title={`${pendingNotifications} pending external user registrations`}
+                  >
+                    <Bell className="w-5 h-5" />
+                    {pendingNotifications > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center font-medium">
+                        {pendingNotifications > 99 ? '99+' : pendingNotifications}
+                      </span>
+                    )}
+                  </Button>
+                )}
                 <Button variant="outline" size="icon" className="rounded-full">
                   <Settings className="w-5 h-5" />
                 </Button>
