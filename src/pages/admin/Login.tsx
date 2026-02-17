@@ -68,7 +68,7 @@ const AdminLogin = () => {
                 </div>
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-5">
+              <form onSubmit={handleLogin} className="space-y-5" autoComplete="off">
                 <div className="space-y-2">
                   <Label htmlFor="username" className="text-foreground/80">{t.login.username}</Label>
                   <div className="relative">
@@ -79,6 +79,7 @@ const AdminLogin = () => {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="pl-10 h-11 bg-background/50 border-input/60 focus:ring-primary/20 transition-all rounded-lg"
+                      autoComplete="off"
                       required
                       placeholder="Enter your government ID"
                     />
@@ -95,6 +96,7 @@ const AdminLogin = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="pl-10 h-11 bg-background/50 border-input/60 focus:ring-primary/20 transition-all rounded-lg"
+                      autoComplete="off"
                       required
                       placeholder="••••••••••••"
                     />
@@ -114,6 +116,7 @@ const AdminLogin = () => {
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
                       className="pl-10 h-11 bg-background/50 border-input/60 focus:ring-primary/20 transition-all rounded-lg tracking-widest font-mono"
+                      autoComplete="off"
                       placeholder="000 000"
                     />
                   </div>

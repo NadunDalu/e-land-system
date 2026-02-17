@@ -77,7 +77,7 @@ const ExternalLogin = () => {
                 </p>
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
                   <div className="relative">
@@ -89,6 +89,7 @@ const ExternalLogin = () => {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="pl-10"
+                      autoComplete="off"
                       required
                     />
                   </div>
@@ -105,6 +106,7 @@ const ExternalLogin = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="pl-10"
+                      autoComplete="off"
                       required
                     />
                   </div>

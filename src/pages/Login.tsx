@@ -133,7 +133,7 @@ const Login = () => {
                     </p>
                   </div>
 
-                  <form onSubmit={handleAdminLogin} className="space-y-4">
+                  <form onSubmit={handleAdminLogin} className="space-y-4" autoComplete="off">
                     <div className="space-y-2">
                       <Label htmlFor="admin-username">Username</Label>
                       <div className="relative">
@@ -145,6 +145,7 @@ const Login = () => {
                           value={adminUsername}
                           onChange={(e) => setAdminUsername(e.target.value)}
                           className="pl-10"
+                          autoComplete="off"
                           required
                         />
                       </div>
@@ -161,6 +162,7 @@ const Login = () => {
                           value={adminPassword}
                           onChange={(e) => setAdminPassword(e.target.value)}
                           className="pl-10"
+                          autoComplete="off"
                           required
                         />
                       </div>
@@ -206,7 +208,7 @@ const Login = () => {
                     </p>
                   </div>
 
-                  <form onSubmit={handleExternalLogin} className="space-y-4">
+                  <form onSubmit={handleExternalLogin} className="space-y-4" autoComplete="off">
                     <div className="space-y-2">
                       <Label htmlFor="external-username">Username</Label>
                       <div className="relative">
@@ -218,6 +220,7 @@ const Login = () => {
                           value={externalUsername}
                           onChange={(e) => setExternalUsername(e.target.value)}
                           className="pl-10"
+                          autoComplete="off"
                           required
                         />
                       </div>
@@ -234,6 +237,7 @@ const Login = () => {
                           value={externalPassword}
                           onChange={(e) => setExternalPassword(e.target.value)}
                           className="pl-10"
+                          autoComplete="off"
                           required
                         />
                       </div>
