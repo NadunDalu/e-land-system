@@ -42,6 +42,16 @@ interface ExternalUser {
   rejectionReason?: string;
 }
 
+interface AuditLogEntry {
+  _id: string;
+  transactionId: string;
+  action: string;
+  performedBy: string;
+  timestamp: string;
+  details: string;
+  deedNumber?: string;
+}
+
 const ExternalUserManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -52,6 +62,12 @@ const ExternalUserManagement = () => {
   const [selectedUser, setSelectedUser] = useState<ExternalUser | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Activity Log State
+  const [userLogs, setUserLogs] = useState<AuditLogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logPage, setLogPage] = useState(1);
+  const [totalLogPages, setTotalLogPages] = useState(1);
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isAdminLoggedIn');
@@ -163,6 +179,25 @@ const ExternalUserManagement = () => {
       });
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const fetchUserLogs = async (username: string, page = 1) => {
+    setLogsLoading(true);
+    try {
+      const response = await api.get(`/audit?username=${username}&page=${page}&limit=5`);
+      setUserLogs(response.data.logs);
+      setTotalLogPages(parseInt(response.data.totalPages));
+      setLogPage(page);
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch user activity logs",
+        variant: "destructive",
+      });
+    } finally {
+      setLogsLoading(false);
     }
   };
 
@@ -584,7 +619,90 @@ const ExternalUserManagement = () => {
                                 </div>
                                 <div className="space-y-2">
                                   <p className="text-sm text-muted-foreground">Actions</p>
-                                  <Button variant="outline" size="sm" disabled>View Activity</Button>
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          fetchUserLogs(user.username, 1);
+                                        }}
+                                      >View Activity</Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                                      <DialogHeader>
+                                        <DialogTitle>Activity Log - {user.fullName} (@{user.username})</DialogTitle>
+                                      </DialogHeader>
+
+                                      <div className="space-y-6 mt-4">
+                                        {logsLoading && userLogs.length === 0 ? (
+                                          <div className="flex justify-center py-12">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                          </div>
+                                        ) : userLogs.length === 0 ? (
+                                          <div className="text-center py-12 border rounded-lg bg-muted/20">
+                                            <p className="text-muted-foreground">No activity logs found for this user.</p>
+                                          </div>
+                                        ) : (
+                                          <div className="space-y-4">
+                                            <div className="border rounded-md overflow-hidden">
+                                              <table className="w-full text-sm text-left">
+                                                <thead className="bg-muted">
+                                                  <tr>
+                                                    <th className="p-3 font-medium">Date/Time</th>
+                                                    <th className="p-3 font-medium">Action</th>
+                                                    <th className="p-3 font-medium">Ref No.</th>
+                                                    <th className="p-3 font-medium">Details</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody className="divide-y bg-background">
+                                                  {userLogs.map((log) => (
+                                                    <tr key={log._id} className="hover:bg-muted/50">
+                                                      <td className="p-3 whitespace-nowrap text-muted-foreground">
+                                                        {new Date(log.timestamp).toLocaleString()}
+                                                      </td>
+                                                      <td className="p-3 capitalize">
+                                                        <Badge variant="outline" className="bg-background">
+                                                          {log.action.replace(/_/g, ' ')}
+                                                        </Badge>
+                                                      </td>
+                                                      <td className="p-3 font-mono text-xs text-muted-foreground">{log.transactionId}</td>
+                                                      <td className="p-3 text-sm">{log.details}</td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                              </table>
+                                            </div>
+
+                                            {/* Pagination */}
+                                            {totalLogPages > 1 && (
+                                              <div className="flex justify-center items-center gap-4 pt-2">
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  disabled={logPage === 1 || logsLoading}
+                                                  onClick={() => fetchUserLogs(user.username, logPage - 1)}
+                                                >
+                                                  Previous
+                                                </Button>
+                                                <span className="text-sm text-muted-foreground">
+                                                  Page {logPage} of {totalLogPages}
+                                                </span>
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  disabled={logPage === totalLogPages || logsLoading}
+                                                  onClick={() => fetchUserLogs(user.username, logPage + 1)}
+                                                >
+                                                  Next
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </DialogContent>
+                                  </Dialog>
                                 </div>
                               </div>
                             </div>

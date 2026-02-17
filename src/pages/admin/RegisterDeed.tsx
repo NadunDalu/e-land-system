@@ -96,12 +96,22 @@ const RegisterDeed = () => {
     setIsSubmitting(true);
 
     try {
-      const payload = {
-        ...formData,
-        blockchainHash: generatedHash
-      };
+      const submitData = new FormData();
 
-      await api.post('/deeds', payload);
+      // Append all text fields
+      Object.entries(formData).forEach(([key, value]) => {
+        submitData.append(key, value);
+      });
+
+      // Append hash and file
+      if (generatedHash) submitData.append('blockchainHash', generatedHash);
+      if (uploadedFile) submitData.append('document', uploadedFile);
+
+      await api.post('/deeds', submitData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
       toast({
         title: t.common.success,

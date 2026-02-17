@@ -26,6 +26,16 @@ const auditLogSchema = new mongoose.Schema({
     details: {
         type: String,
     },
+    userType: {
+        type: String,
+        enum: ['internal', 'external', 'unknown'],
+        default: 'unknown'
+    },
+    status: {
+        type: String,
+        enum: ['success', 'failure'],
+        default: 'success'
+    }
 });
 
 module.exports = mongoose.model('AuditLog', auditLogSchema);

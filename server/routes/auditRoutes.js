@@ -11,7 +11,7 @@ router.get('/', auth, async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
 
-        const { deedNumber, action, performedBy } = req.query;
+        const { deedNumber, action, performedBy, username } = req.query;
 
         let query = {};
 
@@ -23,7 +23,9 @@ router.get('/', auth, async (req, res) => {
             query.action = action;
         }
 
-        if (performedBy) {
+        if (username) {
+            query.performedBy = username;
+        } else if (performedBy) {
             query.performedBy = { $regex: performedBy, $options: 'i' };
         }
 

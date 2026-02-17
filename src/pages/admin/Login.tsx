@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Lock, User, Key, ShieldAlert, ArrowRight } from 'lucide-react';
+import { AlertTriangle, Lock, User, ShieldAlert, ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState('');
+
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -101,23 +101,7 @@ const AdminLogin = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="otp" className="text-foreground/80">{t.login.otp}</Label>
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">Optional</span>
-                  </div>
-                  <div className="relative">
-                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="otp"
-                      type="text"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                      className="pl-10 h-11 bg-background/50 border-input/60 focus:ring-primary/20 transition-all rounded-lg tracking-widest font-mono"
-                      placeholder="000 000"
-                    />
-                  </div>
-                </div>
+
 
                 {error && (
                   <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm p-3 rounded-lg flex items-center gap-2 animate-in slide-in-from-top-2">

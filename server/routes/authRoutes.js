@@ -386,21 +386,73 @@ router.post('/login', async (req, res) => {
 
         if (!user) {
             console.log(`[LOGIN FAILED] User not found: '${username}'`);
+
+            // Log Failed Login (User Not Found)
+            const log = new AuditLog({
+                transactionId: `LOGIN-FAIL-${Date.now()}`,
+                action: 'login',
+                performedBy: username || 'Unknown',
+                userType: 'unknown',
+                status: 'failure',
+                details: 'User not found'
+            });
+            await log.save();
+
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
         // If External, perform additional checks
         if (isExternal) {
             if (!user.emailVerified) {
+                // Log Failed Login (Email Not Verified)
+                const log = new AuditLog({
+                    transactionId: `LOGIN-FAIL-${Date.now()}`,
+                    action: 'login',
+                    performedBy: user.username,
+                    userType: 'external',
+                    status: 'failure',
+                    details: 'Email not verified'
+                });
+                await log.save();
                 return res.status(403).json({ message: 'Email not verified yet.' });
             }
             if (user.registrationStatus === 'pending') {
+                // Log Failed Login (Pending Approval)
+                const log = new AuditLog({
+                    transactionId: `LOGIN-FAIL-${Date.now()}`,
+                    action: 'login',
+                    performedBy: user.username,
+                    userType: 'external',
+                    status: 'failure',
+                    details: 'Account pending admin approval'
+                });
+                await log.save();
                 return res.status(403).json({ message: 'Account pending admin approval.' });
             }
             if (user.registrationStatus === 'rejected') {
+                // Log Failed Login (Rejected)
+                const log = new AuditLog({
+                    transactionId: `LOGIN-FAIL-${Date.now()}`,
+                    action: 'login',
+                    performedBy: user.username,
+                    userType: 'external',
+                    status: 'failure',
+                    details: 'Account application rejected'
+                });
+                await log.save();
                 return res.status(403).json({ message: 'Account application rejected.' });
             }
             if (user.registrationStatus !== 'approved') {
+                // Log Failed Login (Restricted)
+                const log = new AuditLog({
+                    transactionId: `LOGIN-FAIL-${Date.now()}`,
+                    action: 'login',
+                    performedBy: user.username,
+                    userType: 'external',
+                    status: 'failure',
+                    details: 'Account access restricted'
+                });
+                await log.save();
                 return res.status(403).json({ message: 'Account access restricted.' });
             }
         }
@@ -411,6 +463,18 @@ router.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.passwordHash);
         if (!isMatch) {
             console.log(`[LOGIN FAILED] Password mismatch for user: '${username}'`);
+
+            // Log Failed Login (Password Mismatch)
+            const log = new AuditLog({
+                transactionId: `LOGIN-FAIL-${Date.now()}`,
+                action: 'login',
+                performedBy: user.username,
+                userType: isExternal ? 'external' : 'internal',
+                status: 'failure',
+                details: 'Password mismatch'
+            });
+            await log.save();
+
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
@@ -430,6 +494,8 @@ router.post('/login', async (req, res) => {
             transactionId: `LOGIN-${Date.now()}`,
             action: 'login',
             performedBy: user.username,
+            userType: isExternal ? 'external' : 'internal',
+            status: 'success',
             details: 'Login successful'
         });
         await log.save();

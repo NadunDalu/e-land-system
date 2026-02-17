@@ -5,6 +5,7 @@ const Deed = require('../models/Deed');
 const AuditLog = require('../models/AuditLog');
 const auth = require('../middleware/authMiddleware');
 const { requireInternalUser, allowReadOnlyAccess } = require('../middleware/externalMiddleware');
+const { upload } = require('../config/cloudinary');
 
 // Helper function to generate SHA-256 hash
 const calculateDeedHash = (deedData) => {
@@ -64,7 +65,7 @@ const isValidNIC = (nic) => {
 };
 
 // Register a new deed (Internal users only)
-router.post('/', auth, requireInternalUser, async (req, res) => {
+router.post('/', auth, requireInternalUser, upload.single('document'), async (req, res) => {
     try {
         const { landTitleNumber, deedNumber, ownerNIC } = req.body;
 
@@ -84,7 +85,9 @@ router.post('/', auth, requireInternalUser, async (req, res) => {
 
         const newDeed = new Deed({
             ...req.body,
-            registeredBy: req.user.user.username // Save the user who registered it
+            registeredBy: req.user.user.username, // Save the user who registered it
+            documentUrl: req.file ? req.file.path : null,
+            documentPublicId: req.file ? req.file.filename : null
         });
 
         // Generate Hash

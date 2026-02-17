@@ -60,6 +60,12 @@ const deedSchema = new mongoose.Schema({
         type: String,
         required: true,
         default: 'admin'
+    },
+    documentUrl: {
+        type: String,
+    },
+    documentPublicId: {
+        type: String,
     }
 });
 
